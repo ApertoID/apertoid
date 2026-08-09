@@ -1,8 +1,10 @@
-"""ApertoID reference implementation (Layer 1: record parser).
+"""ApertoID reference implementation.
 
-Implements draft-ferro-dnsop-apertoid-00 Section 5 record syntax.
+Layer 1 (parser): draft-ferro-dnsop-apertoid-00 Section 5 record syntax.
+Layer 3 (sig):    draft-ferro-httpbis-apertoid-sig-00 signing/verification.
 """
 
+from . import sig
 from .parser import (
     Diagnostic,
     ParsedRecord,
@@ -19,6 +21,7 @@ __all__ = [
     "RecordType",
     "Diagnostic",
     "Severity",
+    "sig",
 ]
 
 __version__ = "0.1.0"
