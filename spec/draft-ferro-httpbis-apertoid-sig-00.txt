@@ -82,12 +82,12 @@ Table of Contents
      6.1.  Action Binding Scope  . . . . . . . . . . . . . . . . . .  12
      6.2.  HTTP Headers Not Signed . . . . . . . . . . . . . . . . .  13
      6.3.  Clock Synchronization . . . . . . . . . . . . . . . . . .  13
-     6.4.  Nonce Cache Requirements  . . . . . . . . . . . . . . . .  13
+     6.4.  Nonce Cache Requirements  . . . . . . . . . . . . . . . .  14
      6.5.  Private Key Protection  . . . . . . . . . . . . . . . . .  14
      6.6.  Signature Stripping . . . . . . . . . . . . . . . . . . .  14
    7.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .  14
-   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  14
-     8.1.  HTTP Header Field Registration  . . . . . . . . . . . . .  14
+   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  15
+     8.1.  HTTP Header Field Registration  . . . . . . . . . . . . .  15
    9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  15
      9.1.  Normative References  . . . . . . . . . . . . . . . . . .  15
      9.2.  Informative References  . . . . . . . . . . . . . . . . .  16
@@ -254,7 +254,7 @@ Internet-Draft             ApertoID-Signature                 March 2026
  ; Signature: raw 64-byte Ed25519 signature per [RFC8032], standard
  ; Base64 [RFC4648] Section 4, UNPADDED (no "="). 64 bytes -> 86 chars.
  ; Identical to base64-ed25519-sig in [APERTOID-DNS] Section 5.
- base64-ed25519-sig = 86*86( BASE64CHAR )
+ base64-ed25519-sig = 86*86(BASE64CHAR)
  BASE64CHAR         = ALPHA / DIGIT / "+" / "/"
  LHEXDIG            = DIGIT / "a" / "b" / "c" / "d" / "e" / "f"
  OWS                = *( SP / HTAB )
@@ -594,7 +594,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
         Apply policy p= from policy record
         Return "sig_invalid"
      9a. Signature is valid: NOW insert n= into the nonce
-         cache with expiry = t + 300. The nonce MUST be
+         cache with expiry = t + window (the same window as
+         step 3, so the nonce is retained for exactly as long
+         as the signature remains valid). The nonce MUST be
          cached only after the signature verifies, so that
          requests bearing a bad signature cannot burn a
          victim's nonce or flood the cache (an unauthenticated
@@ -609,14 +611,14 @@ Internet-Draft             ApertoID-Signature                 March 2026
    malformed  The ApertoID-Signature header is present but cannot be
       parsed.
 
-   timestamp_invalid  The timestamp is outside the validity window.
-
 
 
 Ferro                   Expires 23 September 2026              [Page 11]
 
 Internet-Draft             ApertoID-Signature                 March 2026
 
+
+   timestamp_invalid  The timestamp is outside the validity window.
 
    nonce_reused  The nonce was already seen within the validity window.
 
@@ -663,9 +665,7 @@ Internet-Draft             ApertoID-Signature                 March 2026
    path?query + body against ANY host that honors the same agent key.
    This has two consequences that implementers MUST understand:
 
-   *  Nothing in the signing input binds a signature to its intended
-      recipient.  The d= tag carries the AGENT's domain, not the
-      DESTINATION service's domain.
+
 
 
 
@@ -673,6 +673,10 @@ Ferro                   Expires 23 September 2026              [Page 12]
 
 Internet-Draft             ApertoID-Signature                 March 2026
 
+
+   *  Nothing in the signing input binds a signature to its intended
+      recipient.  The d= tag carries the AGENT's domain, not the
+      DESTINATION service's domain.
 
    *  The nonce cache does NOT prevent cross-service replay.  Each
       service maintains its own nonce cache, so a signature captured by
@@ -714,14 +718,10 @@ Internet-Draft             ApertoID-Signature                 March 2026
    synchronization.  Clock skew greater than the validity window will
    cause all requests to fail verification.
 
-6.4.  Nonce Cache Requirements
 
-   Verifiers MUST maintain a nonce cache for the duration of the
-   timestamp validity window.  The cache MUST be shared across all
-   verification instances if the service runs multiple processes or
-   nodes.  Failure to maintain a shared nonce cache allows replay
-   attacks across processes.  For services running on a single node, an
-   in-memory cache is sufficient.  For distributed services, a shared
+
+
+
 
 
 
@@ -730,6 +730,14 @@ Ferro                   Expires 23 September 2026              [Page 13]
 Internet-Draft             ApertoID-Signature                 March 2026
 
 
+6.4.  Nonce Cache Requirements
+
+   Verifiers MUST maintain a nonce cache for the duration of the
+   timestamp validity window.  The cache MUST be shared across all
+   verification instances if the service runs multiple processes or
+   nodes.  Failure to maintain a shared nonce cache allows replay
+   attacks across processes.  For services running on a single node, an
+   in-memory cache is sufficient.  For distributed services, a shared
    cache (e.g., Redis, Memcached) is RECOMMENDED.
 
 6.5.  Private Key Protection
@@ -767,6 +775,17 @@ Internet-Draft             ApertoID-Signature                 March 2026
    wish to limit correlation SHOULD rotate selectors periodically,
    though this requires publishing new DNS records.
 
+
+
+
+
+
+
+Ferro                   Expires 23 September 2026              [Page 14]
+
+Internet-Draft             ApertoID-Signature                 March 2026
+
+
 8.  IANA Considerations
 
 8.1.  HTTP Header Field Registration
@@ -778,13 +797,6 @@ Internet-Draft             ApertoID-Signature                 March 2026
    Field Name:  ApertoID-Signature
 
    Status:  permanent
-
-
-
-Ferro                   Expires 23 September 2026              [Page 14]
-
-Internet-Draft             ApertoID-Signature                 March 2026
-
 
    Structured Type:  N/A
 
@@ -821,18 +833,6 @@ Internet-Draft             ApertoID-Signature                 March 2026
               specification", RFC 1035, November 1987,
               <https://www.rfc-editor.org/info/rfc1035>.
 
-   [RFC9112]  Fielding, R., "HTTP/1.1", RFC 9112, June 2022,
-              <https://www.rfc-editor.org/info/rfc9112>.
-
-   [RFC9113]  Thomson, M., "HTTP/2", RFC 9113, June 2022,
-              <https://www.rfc-editor.org/info/rfc9113>.
-
-   [RFC9114]  Bishop, M., "HTTP/3", RFC 9114, June 2022,
-              <https://www.rfc-editor.org/info/rfc9114>.
-
-
-
-
 
 
 
@@ -841,6 +841,15 @@ Ferro                   Expires 23 September 2026              [Page 15]
 
 Internet-Draft             ApertoID-Signature                 March 2026
 
+
+   [RFC9112]  Fielding, R., "HTTP/1.1", RFC 9112, June 2022,
+              <https://www.rfc-editor.org/info/rfc9112>.
+
+   [RFC9113]  Thomson, M., "HTTP/2", RFC 9113, June 2022,
+              <https://www.rfc-editor.org/info/rfc9113>.
+
+   [RFC9114]  Bishop, M., "HTTP/3", RFC 9114, June 2022,
+              <https://www.rfc-editor.org/info/rfc9114>.
 
    [APERTOID-DNS]
               Ferro, A., "ApertoID: DNS-Based Agent Identity Declaration
@@ -881,6 +890,14 @@ Appendix A.  Full Request/Response Example
    Host: api.targetservice.com
    Content-Type: application/json
    ApertoID-Signature: d=example.com; s=leadhunter;
+
+
+
+Ferro                   Expires 23 September 2026              [Page 16]
+
+Internet-Draft             ApertoID-Signature                 March 2026
+
+
      t=1711100000; n=a1b2c3d4e5f6;
      sig=w2nU1SptFk15VYlB8WUC3fV3CT5URCYFOYoRrt3W0Fx+Fq
          81sykTOCgtcjU5mdFDTLgEkGXmjRfhaIAkj3unDQ
@@ -890,14 +907,6 @@ Appendix A.  Full Request/Response Example
    === Signing input that was signed ===
 
    (seven components, each terminated by LF; note the
-
-
-
-Ferro                   Expires 23 September 2026              [Page 16]
-
-Internet-Draft             ApertoID-Signature                 March 2026
-
-
     trailing LF after body_hash. Shown here with a literal
     "\n" marking each 0x0A; the bytes contain no "\n" text.)
 
@@ -938,15 +947,6 @@ Internet-Draft             ApertoID-Signature                 March 2026
      t=1711100000; n=a1b2c3d4e5f6;
      sig=w2nU1SptFk15VYlB8... (same signature)
 
-   Verification FAILS at step 8:
-     signing_input includes "DELETE" and "/mcp/data/all"
-     which differs from original "POST" and "/mcp/tools/search"
-     -> Ed25519 verify FAILS -> Result: sig_invalid
-     (nonce is NOT cached, because the signature did not verify)
-
-
-
-
 
 
 Ferro                   Expires 23 September 2026              [Page 17]
@@ -954,18 +954,18 @@ Ferro                   Expires 23 September 2026              [Page 17]
 Internet-Draft             ApertoID-Signature                 March 2026
 
 
+   Verification FAILS at step 8:
+     signing_input includes "DELETE" and "/mcp/data/all"
+     which differs from original "POST" and "/mcp/tools/search"
+     -> Ed25519 verify FAILS -> Result: sig_invalid
+     (nonce is NOT cached, because the signature did not verify)
+
 Appendix B.  Implementation Guidance
 
    This appendix is non-normative.
 
    To maximize adoption, implementations SHOULD provide middleware or
    decorator patterns that require minimal code changes.
-
-
-
-
-
-
 
 
 

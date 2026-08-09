@@ -98,7 +98,7 @@ alnum           = ALPHA / DIGIT
 ; Signature: raw 64-byte Ed25519 signature per [RFC8032], standard
 ; Base64 [RFC4648] Section 4, UNPADDED (no "="). 64 bytes -> 86 chars.
 ; Identical to base64-ed25519-sig in [APERTOID-DNS] Section 5.
-base64-ed25519-sig = 86*86( BASE64CHAR )
+base64-ed25519-sig = 86*86(BASE64CHAR)
 BASE64CHAR         = ALPHA / DIGIT / "+" / "/"
 LHEXDIG            = DIGIT / "a" / "b" / "c" / "d" / "e" / "f"
 OWS                = *( SP / HTAB )
@@ -236,7 +236,9 @@ VERIFY_APERTOID_SIGNATURE(request):
      Apply policy p= from policy record
      Return "sig_invalid"
   9a. Signature is valid: NOW insert n= into the nonce
-      cache with expiry = t + 300. The nonce MUST be
+      cache with expiry = t + window (the same window as
+      step 3, so the nonce is retained for exactly as long
+      as the signature remains valid). The nonce MUST be
       cached only after the signature verifies, so that
       requests bearing a bad signature cannot burn a
       victim's nonce or flood the cache (an unauthenticated
