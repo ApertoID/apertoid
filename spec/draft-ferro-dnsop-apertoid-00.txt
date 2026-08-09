@@ -143,14 +143,14 @@ Internet-Draft                  ApertoID                      March 2026
    from impersonators, to verify which domain authorized an agent, or to
    enforce policies when verification fails.
 
-   This gap is causing measurable harm.  In the Amazon v.  Perplexity
-   litigation (2025-2026), an AI agent disguised itself as a standard
-   web browser to access services under false pretenses.  The Salesloft-
-   Drift OAuth breach (2025) exploited over-permissioned machine tokens
-   to compromise over 700 companies.  Research indicates that non-human
-   identities outnumber human identities by a factor of 144:1 in
-   enterprise environments, yet 88% of organizations lack identity
-   controls for AI systems.
+   This gap is causing measurable harm.  In one documented case, an
+   AI agent disguised itself as a standard web browser to access a
+   service under false pretenses.  The Salesloft-Drift OAuth breach
+   (2025) exploited over-permissioned machine tokens to compromise
+   over 700 companies.  Research indicates that non-human identities
+   outnumber human identities by up to 144:1 in cloud-native
+   environments, yet 68% of organizations lack identity security
+   controls for AI (CyberArk's 2025 Identity Security Landscape).
 
    Email faced an analogous identity problem two decades ago: any server
    could send email claiming any sender address.  The solution was a
