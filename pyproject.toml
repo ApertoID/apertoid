@@ -9,7 +9,8 @@ description = "ApertoID reference implementation (Layer 1: DNS TXT record parser
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "Andrea Ferro", email = "irn@irn3.com" }]
-license = { text = "BSD-3-Clause" }
+license = { text = "MIT" }
+dependencies = ["cryptography>=41"]
 
 [project.optional-dependencies]
 test = ["pytest>=7"]

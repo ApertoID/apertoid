@@ -7,8 +7,8 @@ rendering of draft-ferro-dnsop-apertoid-00 -- reassembles each multi-line
 parser over it. It is the end-to-end check for FINDINGS F1/F2: after the fix,
 NO agent-declaration example may fail to parse.
 
-This reads the published draft in the iCloud folder (the source of truth the
-edits were applied to), not a copy, so it can drift only if the draft drifts.
+This reads the published draft committed in the repo (spec/), the source of
+truth the edits were applied to, so it can drift only if the draft drifts.
 """
 
 import re
@@ -19,9 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from apertoid import parse_record, RecordType  # noqa: E402
 
-DRAFT_TXT = Path(
-    "/Users/irn/Library/Mobile Documents/com~apple~CloudDocs/"
-    "APERTOID-DA-USARE-IETF-FINALE/draft-ferro-dnsop-apertoid-00.txt"
+DRAFT_TXT = (
+    Path(__file__).resolve().parents[1] / "spec" / "draft-ferro-dnsop-apertoid-00.txt"
 )
 
 
