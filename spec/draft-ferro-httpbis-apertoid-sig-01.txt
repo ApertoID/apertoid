@@ -4,12 +4,12 @@
 
 HTTPBIS                                                         A. Ferro
 Internet-Draft                                                  ApertoID
-Intended status: Standards Track                           22 March 2026
-Expires: 23 September 2026
+Intended status: Standards Track                           9 August 2026
+Expires: 10 February 2027
 
 
      ApertoID-Signature: HTTP Request Signing for AI Agent Identity
-                  draft-ferro-httpbis-apertoid-sig-00
+                  draft-ferro-httpbis-apertoid-sig-01
 
 Abstract
 
@@ -38,7 +38,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 23 September 2026.
+   This Internet-Draft will expire on 10 February 2027.
 
 Copyright Notice
 
@@ -53,9 +53,9 @@ Copyright Notice
 
 
 
-Ferro                   Expires 23 September 2026               [Page 1]
+Ferro                   Expires 10 February 2027                [Page 1]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
    extracted from this document must include Revised BSD License text as
@@ -93,6 +93,7 @@ Table of Contents
      9.2.  Informative References  . . . . . . . . . . . . . . . . .  16
    Appendix A.  Full Request/Response Example  . . . . . . . . . . .  16
    Appendix B.  Implementation Guidance  . . . . . . . . . . . . . .  18
+   Appendix C.  Changes from -00 . . . . . . . . . . . . . . . . . .  20
    Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  20
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  20
 
@@ -108,10 +109,9 @@ Table of Contents
 
 
 
-
-Ferro                   Expires 23 September 2026               [Page 2]
+Ferro                   Expires 10 February 2027                [Page 2]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
    This document defines the ApertoID-Signature HTTP header field, which
@@ -165,9 +165,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026               [Page 3]
+Ferro                   Expires 10 February 2027                [Page 3]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
 1.2.  Requirements Language
@@ -221,9 +221,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026               [Page 4]
+Ferro                   Expires 10 February 2027                [Page 4]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
  apertoid-sig-hdr = "ApertoID-Signature" ":" OWS sig-value OWS
@@ -277,9 +277,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026               [Page 5]
+Ferro                   Expires 10 February 2027                [Page 5]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
       uses this to locate the ApertoID Policy Record at "_apertoid.<d>".
@@ -333,9 +333,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026               [Page 6]
+Ferro                   Expires 10 February 2027                [Page 6]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
    signing_input = d_value   LF
@@ -389,9 +389,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026               [Page 7]
+Ferro                   Expires 10 February 2027                [Page 7]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
       If there is no query component, only the path is included (e.g.,
@@ -445,9 +445,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026               [Page 8]
+Ferro                   Expires 10 February 2027                [Page 8]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
 3.3.  Example
@@ -455,7 +455,7 @@ Internet-Draft             ApertoID-Signature                 March 2026
    An agent "leadhunter" acting for "example.com" sends:
 
    POST /mcp/tools/search HTTP/1.1
-   Host: api.target.com
+   Host: api.example.com
    Content-Type: application/json
 
    {"query": "find leads in tech sector", "limit": 10}
@@ -501,9 +501,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026               [Page 9]
+Ferro                   Expires 10 February 2027                [Page 9]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
 4.  Verification Procedure
@@ -557,9 +557,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026              [Page 10]
+Ferro                   Expires 10 February 2027               [Page 10]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
    VERIFY_APERTOID_SIGNATURE(request):
@@ -613,9 +613,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026              [Page 11]
+Ferro                   Expires 10 February 2027               [Page 11]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
    timestamp_invalid  The timestamp is outside the validity window.
@@ -669,9 +669,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026              [Page 12]
+Ferro                   Expires 10 February 2027               [Page 12]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
    *  Nothing in the signing input binds a signature to its intended
@@ -725,9 +725,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026              [Page 13]
+Ferro                   Expires 10 February 2027               [Page 13]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
 6.4.  Nonce Cache Requirements
@@ -781,9 +781,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026              [Page 14]
+Ferro                   Expires 10 February 2027               [Page 14]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
 8.  IANA Considerations
@@ -837,9 +837,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026              [Page 15]
+Ferro                   Expires 10 February 2027               [Page 15]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
    [RFC9112]  Fielding, R., "HTTP/1.1", RFC 9112, June 2022,
@@ -854,9 +854,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
    [APERTOID-DNS]
               Ferro, A., "ApertoID: DNS-Based Agent Identity Declaration
               Protocol", Work in Progress, Internet-Draft, draft-ferro-
-              dnsop-apertoid-00, March 2026,
+              dnsop-apertoid-01, August 2026,
               <https://datatracker.ietf.org/doc/html/draft-ferro-dnsop-
-              apertoid-00>.
+              apertoid-01>.
 
 9.2.  Informative References
 
@@ -887,15 +887,15 @@ Appendix A.  Full Request/Response Example
    === Agent sends signed POST request ===
 
    POST /mcp/tools/search HTTP/1.1
-   Host: api.targetservice.com
+   Host: api.example.com
    Content-Type: application/json
    ApertoID-Signature: d=example.com; s=leadhunter;
 
 
 
-Ferro                   Expires 23 September 2026              [Page 16]
+Ferro                   Expires 10 February 2027               [Page 16]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
      t=1711100000; n=a1b2c3d4e5f6;
@@ -949,9 +949,9 @@ Internet-Draft             ApertoID-Signature                 March 2026
 
 
 
-Ferro                   Expires 23 September 2026              [Page 17]
+Ferro                   Expires 10 February 2027               [Page 17]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
    Verification FAILS at step 8:
@@ -1005,9 +1005,9 @@ Appendix B.  Implementation Guidance
 
 
 
-Ferro                   Expires 23 September 2026              [Page 18]
+Ferro                   Expires 10 February 2027               [Page 18]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
 
 # Python: Agent side - sign outgoing requests
@@ -1061,12 +1061,49 @@ def verify_request(request):
 
 
 
-Ferro                   Expires 23 September 2026              [Page 19]
+Ferro                   Expires 10 February 2027               [Page 19]
 
-Internet-Draft             ApertoID-Signature                 March 2026
+Internet-Draft             ApertoID-Signature                August 2026
 
+
+Appendix C.  Changes from -00
+
+   This appendix is non-normative and summarizes the changes made in
+   this revision.
+
+   *  Corrected the signature length and encoding: a "sig" value is a
+      raw 64-byte Ed25519 signature (per RFC 8032, not an ASN.1 DER
+      structure) in standard Base64, unpadded, which is exactly 86
+      characters (the -00 text mistakenly counted the padding).  The
+      signature ABNF production was renamed to reflect that standard,
+      not URL-safe, Base64 is used, and the padding character was
+      removed from the alphabet.
+
+   *  Pinned the signing input (Section 3.1) to be deterministic and
+      byte-exact: seven components, each terminated by LF, including a
+      trailing LF after body_hash; the signer and verifier MUST produce
+      byte-identical input.
+
+   *  Fixed the nonce ("n") definition: 8 to 32 lowercase hexadecimal
+      characters, carried verbatim; defined the request "target"
+      independently of HTTP version (origin-form, no normalization) and
+      handled OPTIONS "*" and CONNECT.
+
+   *  Reordered verification so the nonce is inserted into the replay
+      cache only after the signature verifies (with expiry tracking the
+      configurable window), preventing nonce-burn and cache-flood denial
+      of service.
+
+   *  Aligned the "selector", "ldh-label", and signature-format
+      productions to be byte-identical with [APERTOID-DNS], and made all
+      example keys and signatures real, reproducible Ed25519 values that
+      verify against the published public key.
 
 Acknowledgements
+
+   Without Valentina Tognizioli, none of this would exist, not for
+   anything she did, but for who she is.  She was where the ideas
+   started, and the reason I didn't stop.  Grazie, Tina.
 
    The signing mechanism in this document was inspired by the DKIM
    signature scheme [RFC6376].  The principle of binding signatures to
@@ -1075,6 +1112,15 @@ Acknowledgements
    AI agent identity verification with DNS-based key discovery.
 
 Author's Address
+
+
+
+
+
+Ferro                   Expires 10 February 2027               [Page 20]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
 
    Andrea Ferro
    ApertoID
@@ -1117,4 +1163,14 @@ Author's Address
 
 
 
-Ferro                   Expires 23 September 2026              [Page 20]
+
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 10 February 2027               [Page 21]

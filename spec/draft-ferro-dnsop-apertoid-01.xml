@@ -7,7 +7,7 @@
 ]>
 <rfc xmlns:xi="http://www.w3.org/2001/XInclude"
      ipr="trust200902"
-     docName="draft-ferro-dnsop-apertoid-00"
+     docName="draft-ferro-dnsop-apertoid-01"
      category="std"
      consensus="true"
      submissionType="IETF"
@@ -16,7 +16,7 @@
 
   <front>
     <title abbrev="ApertoID">ApertoID: DNS-Based Agent Identity Declaration Protocol</title>
-    <seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertoid-00"/>
+    <seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertoid-01"/>
     <author fullname="Andrea Ferro" initials="A." surname="Ferro">
       <organization>ApertoID</organization>
       <address>
@@ -25,7 +25,7 @@
         <uri>https://github.com/ApertoID</uri>
       </address>
     </author>
-    <date year="2026" month="March" day="22"/>
+    <date year="2026" month="August" day="9"/>
     <area>Operations and Management</area>
     <workgroup>DNSOP</workgroup>
     <keyword>DNS</keyword><keyword>AI Agent</keyword><keyword>Identity</keyword><keyword>Authentication</keyword><keyword>Ed25519</keyword><keyword>MCP</keyword>
@@ -40,7 +40,7 @@
       <name>Introduction</name>
       <t>The rapid proliferation of AI agents acting autonomously on the internet has created a fundamental identity gap. When an AI agent claims to act on behalf of a domain (e.g., "I represent example.com"), no standard protocol exists to verify this claim. The current internet infrastructure — designed for human users operating browsers — provides no mechanism to distinguish legitimate AI agents from impersonators, to verify which domain authorized an agent, or to enforce policies when verification fails.</t>
       <t>This gap is causing measurable harm. In one documented case, an AI agent disguised itself as a standard web browser to access a service under false pretenses. The Salesloft-Drift OAuth breach (2025) exploited over-permissioned machine tokens to compromise over 700 companies. Research indicates that non-human identities outnumber human identities by up to 144:1 in cloud-native environments, yet 68% of organizations lack identity security controls for AI (CyberArk's 2025 Identity Security Landscape).</t>
-      <t>Email faced an analogous identity problem two decades ago: any server could send email claiming any sender address. The solution was a layered DNS-based authentication framework: SPF <xref target="RFC7208"/> declared authorized sending IPs, DKIM <xref target="RFC6376"/> provided cryptographic signatures, and DMARC <xref target="RFC7489"/> unified them with enforcement policies. ApertoID applies the same proven architectural pattern to AI agent identity.</t>
+      <t>Email faced an analogous identity problem two decades ago: any server could send email claiming any sender address. The solution was a layered DNS-based authentication framework: SPF <xref target="RFC7208"/> declared authorized sending IPs, DKIM <xref target="RFC6376"/> provided cryptographic signatures, and DMARC <xref target="RFC9989"/> unified them with enforcement policies. ApertoID applies the same proven architectural pattern to AI agent identity.</t>
       <t>ApertoID is designed to complement, not replace, existing agent discovery mechanisms such as DNS-AID <xref target="I-D.mozleywilliams-dnsop-dnsaid"/> and agent authentication frameworks such as <xref target="I-D.klrc-aiagent-auth"/>. It also complements application-layer agent protocols such as the Model Context Protocol (MCP) and Agent-to-Agent (A2A) protocol. DNS-AID provides discovery ("find the agents for this domain"); <xref target="I-D.klrc-aiagent-auth"/> provides a composable authentication framework; ApertoID provides DNS-based authorization and identity declaration ("verify that this agent is genuinely authorized by this domain").</t>
       <t>The ApertoID protocol builds on the same DNS infrastructure philosophy as the ApertoDNS Protocol <xref target="I-D.ferro-dnsop-apertodns-protocol"/>, which modernized Dynamic DNS updates using well-known URIs and RESTful patterns. Both protocols demonstrate that DNS infrastructure can be extended through lightweight, deployable mechanisms without requiring changes to DNS servers or resolvers.</t>
       <t>Additionally, the EU AI Act (Regulation 2024/1689), Article 50, requires AI systems interacting with natural persons to identify themselves as AI in a machine-readable format, effective August 2, 2026. ApertoID's optional "type" field provides a DNS-based mechanism to satisfy this requirement.</t>
@@ -150,7 +150,7 @@ underscore-label   = "_" 1*(alnum / "-")    ; RFC 8552 underscore-scoped
 alnum              = ALPHA / DIGIT
 ]]></artwork>
         <t>Tags are case-insensitive. Values are case-sensitive unless otherwise specified. Any amount of whitespace (WSP) on either side of a ";" separator is OPTIONAL and MUST be ignored by parsers. The ";" character is reserved as the tag-value separator and MUST NOT appear literally within a value; a ";" that is part of a value (for example a matrix or path parameter in a URL) MUST be percent-encoded as "%3B" per <xref target="RFC3986"/>. The "%" character is permitted in "url" values to allow percent-encoding. Unknown tags MUST be ignored by verifiers to allow forward compatibility. The email-address production follows the Mailbox / Local-part syntax defined in <xref target="RFC5321"/> Section 4.1.2; the "local-part" here uses the dot-atom form and, unlike a bare 1*VCHAR, does not include "@", removing any ambiguity in locating the domain. A "label" is either an ordinary letter-digit-hyphen label following the preferred name syntax of <xref target="RFC1035"/>, or an underscore-scoped label beginning with "_" as defined in <xref target="RFC8552"/>; the latter is REQUIRED so that "include" targets such as "agent1._apertoid.salesforce.com", which contain the "_apertoid" node name, are grammatical.</t>
-        <t>A tag defined by this specification MUST NOT appear more than once in a single record. If a verifier encounters a duplicated known tag (for example two "url" tags or two "p" tags), it MUST treat the record as malformed and return "permerror" (see <xref target="verification"/>), rather than choosing one occurrence. This matches the handling of duplicate tags in DKIM <xref target="RFC6376"/> and DMARC <xref target="RFC7489"/>. This rule applies only to the tags defined here; because unknown tags are ignored for forward compatibility, a repeated unknown tag does not by itself invalidate the record. For the purpose of this rule, "known tag" is absolute: it means any of the tags defined by this specification ("v", "p", "rua", "url", "k", "pk", "exp", "type", "include", "status", "prev"), regardless of the record type implied by the DNS name. This duplicate-detection check is purely syntactic and is applied before, and independently of, the record-type-relative semantic interpretation described in <xref target="policy-location"/>: a tag that is semantically irrelevant at a given record type (and therefore ignored as if unknown when interpreting the record) is nonetheless a duplicated known tag for syntax purposes if it appears more than once.</t>
+        <t>A tag defined by this specification MUST NOT appear more than once in a single record. If a verifier encounters a duplicated known tag (for example two "url" tags or two "p" tags), it MUST treat the record as malformed and return "permerror" (see <xref target="verification"/>), rather than choosing one occurrence. This matches the handling of duplicate tags in DKIM <xref target="RFC6376"/> and DMARC <xref target="RFC9989"/>. This rule applies only to the tags defined here; because unknown tags are ignored for forward compatibility, a repeated unknown tag does not by itself invalidate the record. For the purpose of this rule, "known tag" is absolute: it means any of the tags defined by this specification ("v", "p", "rua", "url", "k", "pk", "exp", "type", "include", "status", "prev"), regardless of the record type implied by the DNS name. This duplicate-detection check is purely syntactic and is applied before, and independently of, the record-type-relative semantic interpretation described in <xref target="policy-location"/>: a tag that is semantically irrelevant at a given record type (and therefore ignored as if unknown when interpreting the record) is nonetheless a duplicated known tag for syntax purposes if it appears more than once.</t>
       </section>
     </section>
 
@@ -284,11 +284,12 @@ leadhunter._apertoid.example.com. 300 IN TXT
         <t>When rotating keys, the domain owner publishes a new Agent Declaration Record with the new key and a "prev" tag containing a signature proving continuity:</t>
         <artwork><![CDATA[
 leadhunter._apertoid.example.com. 3600 IN TXT
-  "v=APERTOID1; url=https://agent.example.com/mcp;
-   k=ed25519; pk=QV8LAsXQn7cwPMrfpSs/1CbTXO6uTPdq0y9IOUGpAIQ;
-   prev=sig:bxX1qXatIGHLYDyXAZw6T2VIAWGBuwkNxGHyYJO+UPO2uWPI35gzIdsi9tg1xa6Y0lUW3PDcZJ9b6OYPMjEgDQ;
-   type=ai; exp=1762000000"
+  "v=APERTOID1; url=https://agent.example.com/mcp; "
+  "k=ed25519; pk=QV8LAsXQn7cwPMrfpSs/1CbTXO6uTPdq0y9IOUGpAIQ; "
+  "prev=sig:bxX1qXatIGHLYDyXAZw6T2VIAWGBuwkNxGHyYJO+UPO2uWPI"
+  "35gzIdsi9tg1xa6Y0lUW3PDcZJ9b6OYPMjEgDQ; type=ai; exp=1762000000"
 ]]></artwork>
+        <t>This record exceeds 255 octets once the "prev" signature is included, so it is shown as multiple TXT character-strings; per <xref target="RFC1035"/> Section 3.3.14 the character-strings are concatenated with no separator to form the single logical record, and the split point (mid-value, inside the Base64 signature) carries no semantics.</t>
         <t>The "prev" tag value is constructed as follows: (1) Let "new_pubkey" be the raw 32-byte new Ed25519 public key. (2) Sign "new_pubkey" using the old Ed25519 private key, producing a 64-byte signature. (3) Encode the signature as unpadded Base64. (4) Prepend "sig:" to form the "prev" tag value.</t>
         <t>Verifiers that have cached the previous public key SHOULD verify the "prev" signature to confirm that the key rotation was authorized by the holder of the previous key. If the "prev" signature is invalid, verifiers SHOULD treat this as a potential key compromise and apply the domain's enforcement policy.</t>
         <t>The "prev" tag is OPTIONAL. When absent, verifiers accept the new key based solely on DNS authority (i.e., the domain owner's control of the DNS zone).</t>
@@ -468,14 +469,14 @@ VERIFY_APERTOID(claimed_domain, selector, agent_url, agent_pubkey):
         <name>Informative References</name>
         <reference anchor="RFC6376" target="https://www.rfc-editor.org/info/rfc6376"><front><title>DomainKeys Identified Mail (DKIM) Signatures</title><author initials="D." surname="Crocker"/><date year="2011" month="September"/></front><seriesInfo name="RFC" value="6376"/></reference>
         <reference anchor="RFC7208" target="https://www.rfc-editor.org/info/rfc7208"><front><title>Sender Policy Framework (SPF)</title><author initials="S." surname="Kitterman"/><date year="2014" month="April"/></front><seriesInfo name="RFC" value="7208"/></reference>
-        <reference anchor="RFC7489" target="https://www.rfc-editor.org/info/rfc7489"><front><title>Domain-based Message Authentication, Reporting, and Conformance (DMARC)</title><author initials="M." surname="Kucherawy"/><date year="2015" month="March"/></front><seriesInfo name="RFC" value="7489"/></reference>
+        <reference anchor="RFC9989" target="https://www.rfc-editor.org/info/rfc9989"><front><title>Domain-based Message Authentication, Reporting, and Conformance (DMARC)</title><author initials="T." surname="Herr"/><author initials="J." surname="Levine"/><date year="2026" month="May"/></front><seriesInfo name="RFC" value="9989"/></reference>
         <reference anchor="RFC5321" target="https://www.rfc-editor.org/info/rfc5321"><front><title>Simple Mail Transfer Protocol</title><author initials="J." surname="Klensin"/><date year="2008" month="October"/></front><seriesInfo name="RFC" value="5321"/></reference>
         <reference anchor="RFC7858" target="https://www.rfc-editor.org/info/rfc7858"><front><title>Specification for DNS over Transport Layer Security (TLS)</title><author initials="Z." surname="Hu"/><date year="2016" month="May"/></front><seriesInfo name="RFC" value="7858"/></reference>
         <reference anchor="RFC8484" target="https://www.rfc-editor.org/info/rfc8484"><front><title>DNS Queries over HTTPS (DoH)</title><author initials="P." surname="Hoffman"/><date year="2018" month="October"/></front><seriesInfo name="RFC" value="8484"/></reference>
         <reference anchor="I-D.mozleywilliams-dnsop-dnsaid"><front><title>DNS Agent Identity Discovery (DNS-AID)</title><author initials="J." surname="Mozley-Williams"/><date year="2026" month="March"/></front><seriesInfo name="Internet-Draft" value="draft-mozleywilliams-dnsop-dnsaid-01"/></reference>
         <reference anchor="I-D.klrc-aiagent-auth"><front><title>Agent Identity Management System (AIMS)</title><author initials="K." surname="Lehman"/><author initials="R." surname="Chen"/><date year="2026" month="March"/></front><seriesInfo name="Internet-Draft" value="draft-klrc-aiagent-auth-00"/></reference>
         <reference anchor="I-D.ferro-dnsop-apertodns-protocol"><front><title>ApertoDNS Protocol: A Modern Dynamic DNS Update Protocol</title><author initials="A." surname="Ferro"/><date year="2026" month="January"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertodns-protocol-02"/></reference>
-        <reference anchor="APERTOID-SIG"><front><title>ApertoID-Signature: HTTP Request Signing for AI Agent Identity</title><author initials="A." surname="Ferro"/><date year="2026"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-httpbis-apertoid-sig-00"/><annotation>Work in progress.</annotation></reference>
+        <reference anchor="APERTOID-SIG"><front><title>ApertoID-Signature: HTTP Request Signing for AI Agent Identity</title><author initials="A." surname="Ferro"/><date year="2026"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-httpbis-apertoid-sig-01"/><annotation>Work in progress.</annotation></reference>
       </references>
     </references>
 
@@ -522,10 +523,10 @@ leadhunter._apertoid.example.com. 300 IN TXT
 
 ; Step 2: Publish new key with rotation proof
 leadhunter._apertoid.example.com. 3600 IN TXT
-  "v=APERTOID1; url=https://agents.example.com/leadhunter;
-   k=ed25519; pk=SDjyggr4hJnmqHN7KakFCGg63jFIwb7tS3jEMcrDIq0;
-   prev=sig:ixwPd0LIcPSCoBzCFpBui04VPn2p6Hx3BKbNKEMw6q6MFVzp7p6PF97pkhKocsh7R/kZXSlWXNvkrXayHNi7AQ;
-   type=ai; exp=1764547200"
+  "v=APERTOID1; url=https://agents.example.com/leadhunter; "
+  "k=ed25519; pk=SDjyggr4hJnmqHN7KakFCGg63jFIwb7tS3jEMcrDIq0; "
+  "prev=sig:ixwPd0LIcPSCoBzCFpBui04VPn2p6Hx3BKbNKEMw6q6MFVzp"
+  "7p6PF97pkhKocsh7R/kZXSlWXNvkrXayHNi7AQ; type=ai; exp=1764547200"
 ]]></artwork>
       </section>
     </section>
@@ -536,8 +537,22 @@ leadhunter._apertoid.example.com. 3600 IN TXT
       <t>ApertoID is designed to be protocol-agnostic at the application layer. MCP Server Cards at "/.well-known/mcp/server-card.json" provide capability discovery; ApertoID complements MCP by providing DNS-based verification that a given MCP server is authorized by the claimed domain. A2A Agent Cards at "/.well-known/agent.json" provide agent discovery; ApertoID provides a DNS-based trust anchor independent of the agent's self-declared card. DNS-AID <xref target="I-D.mozleywilliams-dnsop-dnsaid"/> provides DNS-based agent discovery; ApertoID provides authorization and identity verification. The two are complementary: DNS-AID answers "what agents does this domain have?" while ApertoID answers "is this agent genuinely authorized by this domain?"</t>
     </section>
 
+    <section anchor="changes">
+      <name>Changes from -00</name>
+      <t>This appendix is non-normative and summarizes the changes made in this revision.</t>
+      <ul>
+        <li>Corrected the Section 5.1 ABNF: the "pk" public key is a raw 32-byte Ed25519 key in unpadded Base64 (exactly 43 characters, not an SPKI wrapping), and "prev" signatures are 64 bytes unpadded (86 characters); the "=" padding character was removed from BASE64CHAR.</li>
+        <li>Corrected the "label" production: "ldh-label" is now "alnum"-first (a leading digit is permitted), and an "underscore-label" alternative was added so underscore-scoped names such as "_apertoid" include targets are grammatical.</li>
+        <li>Tightened the whitespace ("*WSP" around ";"), URI-CHAR (added "%"; excluded ";"), and email-address (RFC 5321 dot-atom) productions.</li>
+        <li>Clarified that revocation records ("status=revoked") are exempt from the "url"-or-"include" requirement; that record type is determined by the DNS query name, not by content; that duplicate known tags are a "permerror"; and that "pk" may appear without "k".</li>
+        <li>Corrected three factual claims in the Introduction: the non-human-to-human identity ratio is scoped as up to 144:1 in cloud-native environments; the proportion of organizations lacking AI identity controls is 68 percent (CyberArk 2025); and the browser-impersonation example is stated as behavior only, without characterizing any litigation outcome.</li>
+        <li>Regenerated all example keys and signatures as real, reproducible Ed25519 values; aligned the "ldh-label" and signature-format productions to be byte-identical with <xref target="APERTOID-SIG"/>.</li>
+      </ul>
+    </section>
+
     <section numbered="false" anchor="acknowledgements">
       <name>Acknowledgements</name>
+      <t>Without Valentina Tognizioli, none of this would exist, not for anything she did, but for who she is. She was where the ideas started, and the reason I didn't stop. Grazie, Tina.</t>
       <t>The design of ApertoID was informed by the architectural patterns established by SPF, DKIM, and DMARC for email authentication, and by DANE for DNS-based authentication of named entities. The author acknowledges the DNSOP working group participants whose feedback on draft-ferro-dnsop-apertodns-protocol shaped the approach taken in this document.</t>
     </section>
 

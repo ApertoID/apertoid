@@ -2,7 +2,7 @@
 
 Unlike test_draft_examples.py (which hardcodes record strings), this harness
 extracts the record examples *directly from the draft source* -- the .txt
-rendering of draft-ferro-dnsop-apertoid-00 -- reassembles each multi-line
+rendering of draft-ferro-dnsop-apertoid-01 -- reassembles each multi-line
 "...IN TXT" record into its single logical TXT string, and runs the Layer 1
 parser over it. It is the end-to-end check for FINDINGS F1/F2: after the fix,
 NO agent-declaration example may fail to parse.
@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from apertoid import parse_record, RecordType  # noqa: E402
 
 DRAFT_TXT = (
-    Path(__file__).resolve().parents[1] / "spec" / "draft-ferro-dnsop-apertoid-00.txt"
+    Path(__file__).resolve().parents[1] / "spec" / "draft-ferro-dnsop-apertoid-01.txt"
 )
 
 
@@ -39,10 +39,21 @@ def extract_records(text: str) -> list[str]:
     ';' is ignored).
     """
     records = []
-    # Find `IN TXT` then the next "..." possibly spanning lines.
-    for m in re.finditer(r'IN\s+TXT\s*\n\s*"(.*?)"', text, re.DOTALL):
-        body = m.group(1)
-        # collapse any run of whitespace (incl. newlines + indentation) to one space
+    # Find `IN TXT` then the following one-or-more quoted character-strings.
+    # A record may be split across multiple TXT character-strings (RFC 1035
+    # Section 3.3.14) when it exceeds 255 octets (e.g. records carrying a
+    # "prev" signature); DNS concatenates the character-strings with NO
+    # separator to form the single logical record, so we do the same. Each
+    # character-string may itself wrap across physical lines with indentation.
+    for m in re.finditer(r'IN\s+TXT\s*\n((?:\s*"(?:[^"]*)"\s*)+)', text):
+        block = m.group(1)
+        # Concatenate every quoted character-string in the block, verbatim
+        # (no separator between strings, per RFC 1035 Section 3.3.14).
+        parts = re.findall(r'"([^"]*)"', block)
+        body = "".join(parts)
+        # A single character-string may not span physical lines in the master
+        # file, but our examples indent for readability; collapse internal
+        # whitespace runs (Section 5.1: whitespace around ';' is ignored).
         body = re.sub(r"\s+", " ", body).strip()
         records.append(body)
     return records

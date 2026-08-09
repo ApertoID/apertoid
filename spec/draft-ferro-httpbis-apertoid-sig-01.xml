@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rfc xmlns:xi="http://www.w3.org/2001/XInclude"
      ipr="trust200902"
-     docName="draft-ferro-httpbis-apertoid-sig-00"
+     docName="draft-ferro-httpbis-apertoid-sig-01"
      category="std"
      consensus="true"
      submissionType="IETF"
@@ -10,7 +10,7 @@
 
   <front>
     <title abbrev="ApertoID-Signature">ApertoID-Signature: HTTP Request Signing for AI Agent Identity</title>
-    <seriesInfo name="Internet-Draft" value="draft-ferro-httpbis-apertoid-sig-00"/>
+    <seriesInfo name="Internet-Draft" value="draft-ferro-httpbis-apertoid-sig-01"/>
     <author fullname="Andrea Ferro" initials="A." surname="Ferro">
       <organization>ApertoID</organization>
       <address>
@@ -19,7 +19,7 @@
         <uri>https://github.com/ApertoID</uri>
       </address>
     </author>
-    <date year="2026" month="March" day="22"/>
+    <date year="2026" month="August" day="9"/>
     <area>Web and Internet Transport</area>
     <workgroup>HTTPBIS</workgroup>
     <keyword>HTTP</keyword><keyword>AI Agent</keyword><keyword>Signature</keyword><keyword>Ed25519</keyword><keyword>Identity</keyword>
@@ -173,7 +173,7 @@ e3b0c44298fc1c149afbf4c8996fb924
         <t>An agent "leadhunter" acting for "example.com" sends:</t>
         <artwork><![CDATA[
 POST /mcp/tools/search HTTP/1.1
-Host: api.target.com
+Host: api.example.com
 Content-Type: application/json
 
 {"query": "find leads in tech sector", "limit": 10}
@@ -346,7 +346,7 @@ VERIFY_APERTOID_SIGNATURE(request):
         <reference anchor="RFC9112" target="https://www.rfc-editor.org/info/rfc9112"><front><title>HTTP/1.1</title><author initials="R." surname="Fielding"/><date year="2022" month="June"/></front><seriesInfo name="RFC" value="9112"/></reference>
         <reference anchor="RFC9113" target="https://www.rfc-editor.org/info/rfc9113"><front><title>HTTP/2</title><author initials="M." surname="Thomson"/><date year="2022" month="June"/></front><seriesInfo name="RFC" value="9113"/></reference>
         <reference anchor="RFC9114" target="https://www.rfc-editor.org/info/rfc9114"><front><title>HTTP/3</title><author initials="M." surname="Bishop"/><date year="2022" month="June"/></front><seriesInfo name="RFC" value="9114"/></reference>
-        <reference anchor="APERTOID-DNS"><front><title>ApertoID: DNS-Based Agent Identity Declaration Protocol</title><author initials="A." surname="Ferro"/><date year="2026" month="March"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertoid-00"/></reference>
+        <reference anchor="APERTOID-DNS"><front><title>ApertoID: DNS-Based Agent Identity Declaration Protocol</title><author initials="A." surname="Ferro"/><date year="2026" month="August"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertoid-01"/></reference>
       </references>
       <references>
         <name>Informative References</name>
@@ -371,7 +371,7 @@ whitespace-free token on the wire.</t>
 === Agent sends signed POST request ===
 
 POST /mcp/tools/search HTTP/1.1
-Host: api.targetservice.com
+Host: api.example.com
 Content-Type: application/json
 ApertoID-Signature: d=example.com; s=leadhunter;
   t=1711100000; n=a1b2c3d4e5f6;
@@ -485,8 +485,21 @@ def verify_request(request):
       <t>Reference implementations in Python, Go, and JavaScript are maintained at https://github.com/ApertoID.</t>
     </section>
 
+    <section anchor="changes">
+      <name>Changes from -00</name>
+      <t>This appendix is non-normative and summarizes the changes made in this revision.</t>
+      <ul>
+        <li>Corrected the signature length and encoding: a "sig" value is a raw 64-byte Ed25519 signature (per RFC 8032, not an ASN.1 DER structure) in standard Base64, unpadded, which is exactly 86 characters (the -00 text mistakenly counted the padding). The signature ABNF production was renamed to reflect that standard, not URL-safe, Base64 is used, and the padding character was removed from the alphabet.</li>
+        <li>Pinned the signing input (Section 3.1) to be deterministic and byte-exact: seven components, each terminated by LF, including a trailing LF after body_hash; the signer and verifier MUST produce byte-identical input.</li>
+        <li>Fixed the nonce ("n") definition: 8 to 32 lowercase hexadecimal characters, carried verbatim; defined the request "target" independently of HTTP version (origin-form, no normalization) and handled OPTIONS "*" and CONNECT.</li>
+        <li>Reordered verification so the nonce is inserted into the replay cache only after the signature verifies (with expiry tracking the configurable window), preventing nonce-burn and cache-flood denial of service.</li>
+        <li>Aligned the "selector", "ldh-label", and signature-format productions to be byte-identical with <xref target="APERTOID-DNS"/>, and made all example keys and signatures real, reproducible Ed25519 values that verify against the published public key.</li>
+      </ul>
+    </section>
+
     <section numbered="false" anchor="acknowledgements">
       <name>Acknowledgements</name>
+      <t>Without Valentina Tognizioli, none of this would exist, not for anything she did, but for who she is. She was where the ideas started, and the reason I didn't stop. Grazie, Tina.</t>
       <t>The signing mechanism in this document was inspired by the DKIM signature scheme <xref target="RFC6376"/>. The principle of binding signatures to specific request components follows the approach established by HTTP Message Signatures <xref target="RFC9421"/>, adapted for the single-purpose case of AI agent identity verification with DNS-based key discovery.</t>
     </section>
 
