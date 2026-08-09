@@ -65,11 +65,15 @@ _RE_SIG = re.compile(rf"^{_BASE64CHAR}{{86}}$")
 
 # domain-name      = label *("." label)
 # label            = ldh-label / underscore-label
-# ldh-label        = ALPHA *(ALPHA / DIGIT / "-")   ; RFC 1035 preferred syntax
-# underscore-label = "_" 1*(ALPHA / DIGIT / "-")    ; RFC 8552 underscore-scoped
+# ldh-label        = alnum *(alnum / "-")   ; RFC 1035 preferred syntax
+# underscore-label = "_" 1*(alnum / "-")    ; RFC 8552 underscore-scoped
+# alnum            = ALPHA / DIGIT
 # (Corrected per FINDINGS F9 so underscore-scoped names like "_apertoid" and
-# include targets such as "agent1._apertoid.salesforce.com" are grammatical.)
-_RE_LABEL = re.compile(r"^(?:[A-Za-z][A-Za-z0-9-]*|_[A-Za-z0-9-]+)$")
+# include targets such as "agent1._apertoid.salesforce.com" are grammatical.
+# ldh-label is alnum-first -- a leading digit is allowed, matching the Section
+# 7.1 prose ("alphanumeric") and the -sig draft's identical ldh-label; the
+# post-review cross-draft fix so "42domains.example" parses in both drafts.)
+_RE_LABEL = re.compile(r"^(?:[A-Za-z0-9][A-Za-z0-9-]*|_[A-Za-z0-9-]+)$")
 
 # URI-CHAR (Section 5.1), corrected per FINDINGS F7 (add "%") and F3 (drop ";").
 # ";" is the reserved tag separator and MUST be percent-encoded (%3B) in a URL.

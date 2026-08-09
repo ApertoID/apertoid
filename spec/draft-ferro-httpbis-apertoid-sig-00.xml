@@ -62,29 +62,48 @@
         <artwork><![CDATA[
 ApertoID-Signature: d=example.com; s=leadhunter;
   t=1711100000; n=a1b2c3d4e5f6;
-  sig=<base64-ed25519-signature-88chars>
+  sig=<base64-ed25519-signature-86chars>
 ]]></artwork>
+        <t>The example above is shown wrapped across multiple lines with leading indentation solely for readability. On the wire the ApertoID-Signature header field value is a single line: obsolete line folding (obs-fold) MUST NOT be used, and the whitespace surrounding each ";" separator is optional whitespace (OWS), not a mandatory single space.</t>
       </section>
 
       <section anchor="abnf">
         <name>ABNF Definition</name>
         <artwork type="abnf"><![CDATA[
 apertoid-sig-hdr = "ApertoID-Signature" ":" OWS sig-value OWS
-sig-value       = domain-tag ";" SP selector-tag ";"
-                  SP timestamp-tag ";" SP nonce-tag ";"
-                  SP signature-tag
+sig-value       = domain-tag    OWS ";" OWS
+                  selector-tag  OWS ";" OWS
+                  timestamp-tag OWS ";" OWS
+                  nonce-tag     OWS ";" OWS
+                  signature-tag
 domain-tag      = "d=" domain-name
 selector-tag    = "s=" selector
-timestamp-tag   = "t=" 1*DIGIT
-nonce-tag       = "n=" 1*16HEXDIG
-signature-tag   = "sig=" base64url
+timestamp-tag   = "t=" 1*20DIGIT
+nonce-tag       = "n=" 8*32LHEXDIG
+signature-tag   = "sig=" base64-ed25519-sig
 
+; Selector and domain-name are defined identically to [APERTOID-DNS]
+; Section 5 / Section 7.1; the two documents MUST agree, because s= and
+; d= locate the DNS Agent Declaration Record at <s>._apertoid.<d>.
 domain-name     = label *("." label)
-label           = ALPHA *(ALPHA / DIGIT / "-")
-selector        = ALPHA *(ALPHA / DIGIT / "-")
-base64url       = 1*( ALPHA / DIGIT / "+" / "/" / "=" )
-OWS             = *( SP / HTAB )
+label           = ldh-label / underscore-label
+ldh-label       = alnum *(alnum / "-")   ; RFC 1035 preferred; LDH,
+                                         ; no leading/trailing hyphen
+underscore-label = "_" 1*(alnum / "-")   ; RFC 8552 scoped
+selector        = ldh-label              ; DNS label: 1-63 chars, LDH,
+                                         ; no leading/trailing hyphen,
+                                         ; case-insensitive (see below)
+alnum           = ALPHA / DIGIT
+
+; Signature: raw 64-byte Ed25519 signature per [RFC8032], standard
+; Base64 [RFC4648] Section 4, UNPADDED (no "="). 64 bytes -> 86 chars.
+; Identical to base64-ed25519-sig in [APERTOID-DNS] Section 5.
+base64-ed25519-sig = 86*86( BASE64CHAR )
+BASE64CHAR         = ALPHA / DIGIT / "+" / "/"
+LHEXDIG            = DIGIT / "a" / "b" / "c" / "d" / "e" / "f"
+OWS                = *( SP / HTAB )
 ]]></artwork>
+        <t>The <tt>ldh-label</tt> and <tt>selector</tt> productions above express the letter-digit-hyphen (LDH) form but do not, by themselves, encode the "no leading or trailing hyphen", "at least one character", and "at most 63 characters" constraints; those constraints are normative and are stated in <xref target="RFC1035"/> and reproduced here: a selector and each label MUST be 1 to 63 characters, MUST consist only of alphanumerics and hyphens, and MUST NOT begin or end with a hyphen. Selectors and labels are compared case-insensitively. A leading digit is permitted (e.g., "42agents"). These rules are identical to <xref target="APERTOID-DNS"/> so that any selector or domain valid in one document is valid in the other.</t>
       </section>
 
       <section anchor="header-tags">
@@ -92,9 +111,9 @@ OWS             = *( SP / HTAB )
         <dl>
           <dt>d (REQUIRED)</dt><dd>The domain the agent claims to represent. The verifier uses this to locate the ApertoID Policy Record at "_apertoid.&lt;d&gt;".</dd>
           <dt>s (REQUIRED)</dt><dd>The agent selector. Combined with the domain, this identifies the Agent Declaration Record at "&lt;s&gt;._apertoid.&lt;d&gt;" where the public key is published.</dd>
-          <dt>t (REQUIRED)</dt><dd>The signature timestamp as a Unix timestamp (seconds since 1970-01-01T00:00:00Z). MUST be within the validity window (default: 300 seconds / 5 minutes) of the verifier's current time. Requests with timestamps outside this window MUST be rejected.</dd>
-          <dt>n (REQUIRED)</dt><dd>A nonce: a unique, non-repeating value for this request, encoded as 1-16 hexadecimal characters (lowercase). The nonce provides replay protection within the timestamp validity window. Verifiers MUST maintain a nonce cache for the duration of the validity window and MUST reject requests with previously seen nonces.</dd>
-          <dt>sig (REQUIRED)</dt><dd>The Ed25519 signature over the signing input (<xref target="signing-input"/>), encoded as unpadded Base64 per <xref target="RFC4648"/> Section 4 (88 characters for 64 bytes).</dd>
+          <dt>t (REQUIRED)</dt><dd>The signature timestamp as a Unix timestamp (an unsigned decimal integer of seconds since 1970-01-01T00:00:00Z, at most 20 digits, i.e., a 64-bit value). The verifier MUST apply a two-sided validity window: the timestamp MUST be within the validity window (default: 300 seconds / 5 minutes) of the verifier's current time in EITHER direction. Both timestamps too far in the past AND timestamps too far in the future MUST be rejected (see <xref target="verification"/>, which specifies the check as |current_time - t| &gt; window).</dd>
+          <dt>n (REQUIRED)</dt><dd>A nonce: a unique, non-repeating value for this request, encoded as 8 to 32 lowercase hexadecimal characters (32 to 128 bits of entropy). Uppercase hexadecimal MUST NOT be used on the wire; the nonce is carried verbatim in the signing input, so the wire value and the signed value are byte-identical. The nonce provides replay protection within the timestamp validity window. Verifiers MUST maintain a nonce cache for the duration of the validity window and MUST reject requests with previously seen nonces.</dd>
+          <dt>sig (REQUIRED)</dt><dd>The Ed25519 signature over the signing input (<xref target="signing-input"/>): a raw 64-byte Ed25519 signature per <xref target="RFC8032"/> (NOT an ASN.1 DER structure), encoded as standard Base64 per <xref target="RFC4648"/> Section 4, unpadded (without the trailing "=" padding). For a 64-byte signature this is exactly 86 characters. This is identical to the base64-ed25519-sig format used for the "prev" tag in <xref target="APERTOID-DNS"/> Section 5.</dd>
         </dl>
       </section>
     </section>
@@ -104,7 +123,7 @@ OWS             = *( SP / HTAB )
 
       <section anchor="signing-input">
         <name>Signing Input Construction</name>
-        <t>The signing input is a byte string constructed by concatenating the following components, each terminated by a newline character (0x0A):</t>
+        <t>The signing input is a byte string constructed by concatenating the following seven components in order, each immediately followed by ("terminated by") a single newline character (0x0A, "LF"). Because every component including the last is terminated by LF, the signing input ALWAYS ends with a trailing 0x0A. There are exactly seven LF bytes. Signers and verifiers MUST construct byte-identical signing input, including this trailing LF; a one-byte difference causes every signature to fail verification.</t>
         <artwork><![CDATA[
 signing_input = d_value   LF
                 s_value   LF
@@ -118,10 +137,12 @@ signing_input = d_value   LF
         <dl>
           <dt>d_value</dt><dd>The value of the d= tag (the domain name, lowercase).</dd>
           <dt>s_value</dt><dd>The value of the s= tag (the selector, lowercase).</dd>
-          <dt>t_value</dt><dd>The decimal string representation of the t= tag (the timestamp).</dd>
+          <dt>t_value</dt><dd>The t= tag value (the Unix timestamp) as its canonical decimal string: ASCII digits with no leading zeros (except the value "0" itself), no sign, and no whitespace. The value carried on the wire and the value in the signing input MUST be byte-identical, so signers MUST NOT zero-pad t=; a verifier that re-serializes t= (for example via an integer parse) MUST reproduce this canonical form.</dd>
           <dt>n_value</dt><dd>The value of the n= tag (the nonce, lowercase hex).</dd>
           <dt>method</dt><dd>The HTTP request method, uppercase (e.g., "GET", "POST", "DELETE"). This binds the signature to the specific HTTP action. A signature created for a POST request MUST NOT be valid for a GET or DELETE request.</dd>
-          <dt>target</dt><dd>The request target as sent in the HTTP request line: the path and query string, without the scheme, host, or fragment (e.g., "/mcp/tools/search?limit=10"). If there is no query string, only the path is included (e.g., "/mcp/tools/search"). This binds the signature to the specific endpoint. A signature created for /mcp/search MUST NOT be valid for /mcp/delete.</dd>
+          <dt>target</dt><dd><t>The origin-form request target, defined independently of HTTP version as <tt>path [ "?" query ]</tt>: the absolute path and, if present, the query string, without the scheme, authority (host/port), or fragment (e.g., "/mcp/tools/search?limit=10"). In HTTP/1.1 <xref target="RFC9112"/> this is the request-line target for origin-form requests; in HTTP/2 <xref target="RFC9113"/> and HTTP/3 <xref target="RFC9114"/> it is the value of the ":path" pseudo-header field. The two MUST yield the same byte string.</t>
+          <t>The target is taken exactly as sent on the wire, with NO normalization: percent-encoding MUST be preserved exactly as transmitted (it MUST NOT be percent-decoded or re-encoded), dot-segments MUST NOT be removed ("/a/../b" is signed as "/a/../b", not "/b"), and case MUST NOT be changed. This binds the signature to the specific endpoint. A signature created for "/mcp/search" MUST NOT be valid for "/mcp/delete". Intermediaries that normalize the request target will invalidate the signature; deployments in which such intermediaries are present are out of scope.</t>
+          <t>If there is no query component, only the path is included (e.g., "/mcp/tools/search"); a present-but-empty query ("/x?") is signed with the trailing "?" exactly as sent. This mechanism is defined for origin-form request targets only. The asterisk-form target of "OPTIONS *" MUST be signed as the single character "*". The authority-form target of a CONNECT request is not a path and is NOT supported; ApertoID-Signature MUST NOT be applied to CONNECT requests.</t></dd>
           <dt>body_hash</dt><dd><t>The lowercase hexadecimal SHA-256 hash of the raw HTTP request body. This binds the signature to the specific request content. If the request has no body (e.g., GET, HEAD, DELETE without body), the SHA-256 hash of the empty string MUST be used:</t>
           <artwork><![CDATA[
 e3b0c44298fc1c149afbf4c8996fb924
@@ -137,7 +158,7 @@ e3b0c44298fc1c149afbf4c8996fb924
         <ol>
           <li>Determine the request method (e.g., "POST") and request target (e.g., "/mcp/tools/search").</li>
           <li>Compute the SHA-256 hash of the request body (or the empty-body hash for bodyless requests).</li>
-          <li>Generate a unique nonce (RECOMMENDED: 8-16 random hex characters).</li>
+          <li>Generate a unique nonce (RECOMMENDED: 8-32 random lowercase hex characters, i.e. 32-128 bits of entropy, matching the n= tag definition in <xref target="header-tags"/>).</li>
           <li>Record the current Unix timestamp.</li>
           <li>Construct the signing input as defined in <xref target="signing-input"/>.</li>
           <li>Sign the signing input using the agent's Ed25519 private key per <xref target="RFC8032"/>, producing a 64-byte signature.</li>
@@ -157,7 +178,7 @@ Content-Type: application/json
 
 {"query": "find leads in tech sector", "limit": 10}
 ]]></artwork>
-        <t>The signing input (each line terminated by LF):</t>
+        <t>The body is hashed exactly as transmitted on the wire; no JSON or other canonicalization is applied. The SHA-256 of the 51-byte body shown above is the hex string below. The signing input is the seven components, each terminated by LF (note the trailing LF after body_hash):</t>
         <artwork><![CDATA[
 example.com
 leadhunter
@@ -165,14 +186,16 @@ leadhunter
 a1b2c3d4e5f6
 POST
 /mcp/tools/search
-7d5e4a8b... (SHA-256 of the JSON body)
+628e22adadb97ae8d0de9bbf50b3556d252763f2d5710c2c6b342173c1aa4675
 ]]></artwork>
-        <t>The agent signs this input with its Ed25519 private key and attaches:</t>
+        <t>The agent signs this input with its Ed25519 private key and attaches the header below. The signature is a raw 64-byte Ed25519 signature, unpadded Base64, 86 characters. The values in this example are real and reproducible: the private key is the Ed25519 key whose seed is SHA-256("apertoid-sig-example:leadhunter"), and the corresponding raw 32-byte public key (43-char unpadded Base64, per <xref target="APERTOID-DNS"/>) is pk=ZgUmBeB/kgMsrD8+qlFCfJ7KeRse6RSJnvlL4qQnyGE. Verifying the signature below against that public key and the signing input above succeeds.</t>
         <artwork><![CDATA[
 ApertoID-Signature: d=example.com; s=leadhunter;
   t=1711100000; n=a1b2c3d4e5f6;
-  sig=MEUCIQDx4f... (88 base64 characters)
+  sig=w2nU1SptFk15VYlB8WUC3fV3CT5URCYFOYoRrt3W0Fx+Fq81sy
+      kTOCgtcjU5mdFDTLgEkGXmjRfhaIAkj3unDQ
 ]]></artwork>
+        <t>The sig value above is a single 86-character token; it is shown wrapped only to fit the page and contains no whitespace on the wire.</t>
       </section>
     </section>
 
@@ -186,11 +209,14 @@ VERIFY_APERTOID_SIGNATURE(request):
   1. Extract ApertoID-Signature header from request
   2. Parse d=, s=, t=, n=, sig= tags
      If any required tag is missing: Return "malformed"
-  3. Check timestamp t= is within validity window:
-     If |current_time - t| > 300: Return "timestamp_invalid"
-  4. Check nonce n= against nonce cache:
+  3. Check timestamp t= is within validity window
+     (two-sided; rejects both past and future skew;
+     window defaults to 300s, configurable 60-600 per
+     Section 5):
+     If |current_time - t| > window: Return "timestamp_invalid"
+  4. Check nonce n= against nonce cache (READ ONLY here;
+     do NOT insert yet -- see step 9a):
      If n= is in cache: Return "nonce_reused"
-     Add n= to cache with expiry = t + 300
   5. Perform DNS verification per [APERTOID-DNS]:
      Query "_apertoid.<d>" for policy record
      Query "<s>._apertoid.<d>" for agent declaration
@@ -201,13 +227,20 @@ VERIFY_APERTOID_SIGNATURE(request):
   7. Reconstruct signing_input from:
      d, s, t, n,
      request.method (uppercase),
-     request.target (path + query),
+     request.target (origin-form, unnormalized),
      SHA-256(request.body)
+     (seven LF-terminated components; see Section 3.1)
   8. Verify Ed25519 signature sig= against signing_input
      using public key pk= from DNS record
   9. If signature is invalid:
      Apply policy p= from policy record
      Return "sig_invalid"
+  9a. Signature is valid: NOW insert n= into the nonce
+      cache with expiry = t + 300. The nonce MUST be
+      cached only after the signature verifies, so that
+      requests bearing a bad signature cannot burn a
+      victim's nonce or flood the cache (an unauthenticated
+      request never mutates verifier state).
   10. Return "pass"
 ]]></artwork>
 
@@ -240,7 +273,12 @@ VERIFY_APERTOID_SIGNATURE(request):
 
       <section anchor="sec-action-binding">
         <name>Action Binding Scope</name>
-        <t>The signing input includes the HTTP method and request target (path + query), preventing cross-endpoint and cross-method replay attacks. However, it does not include the Host header or scheme. This means a valid signature could theoretically be replayed against a different host serving the same path, if the attacker can redirect the request. In practice, this is mitigated by TLS: the agent establishes a TLS connection to a specific host, and the signature is only transmitted over that connection. Services MUST require HTTPS per <xref target="RFC9110"/>; HTTP connections MUST NOT be used with ApertoID-Signature.</t>
+        <t>The signing input includes the HTTP method and request target (path + query), preventing cross-endpoint and cross-method replay attacks. However, it does NOT include the scheme, the authority (Host), or the port. A signature is therefore valid for the same method + path?query + body against ANY host that honors the same agent key. This has two consequences that implementers MUST understand:</t>
+        <ul>
+          <li>Nothing in the signing input binds a signature to its intended recipient. The d= tag carries the AGENT's domain, not the DESTINATION service's domain.</li>
+          <li>The nonce cache does NOT prevent cross-service replay. Each service maintains its own nonce cache, so a signature captured by (or leaked from) service A can be replayed to a different service B within the timestamp window with the ORIGINAL nonce, because B has never seen that nonce. Replay protection via the nonce is per-destination, not global.</li>
+        </ul>
+        <t>In practice, cross-host replay is mitigated by TLS: the agent establishes a TLS connection to a specific host, and the signature is only transmitted over that connection, so an attacker cannot obtain the signature without compromising the destination or the transport. Services MUST require HTTPS per <xref target="RFC9110"/>; HTTP connections MUST NOT be used with ApertoID-Signature. Deployments that require binding a signature to a specific destination SHOULD NOT rely on the nonce cache for this and instead SHOULD consider an out-of-band recipient binding (for example, an audience identifier agreed between agent and service); a normative audience binding is deferred to a future revision.</t>
       </section>
 
       <section anchor="sec-headers-not-signed">
@@ -302,6 +340,10 @@ VERIFY_APERTOID_SIGNATURE(request):
         <reference anchor="RFC8032" target="https://www.rfc-editor.org/info/rfc8032"><front><title>Edwards-Curve Digital Signature Algorithm (EdDSA)</title><author initials="S." surname="Josefsson"/><date year="2017" month="January"/></front><seriesInfo name="RFC" value="8032"/></reference>
         <reference anchor="RFC8174" target="https://www.rfc-editor.org/info/rfc8174"><front><title>Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words</title><author initials="B." surname="Leiba"/><date year="2017" month="May"/></front><seriesInfo name="RFC" value="8174"/></reference>
         <reference anchor="RFC9110" target="https://www.rfc-editor.org/info/rfc9110"><front><title>HTTP Semantics</title><author initials="R." surname="Fielding"/><date year="2022" month="June"/></front><seriesInfo name="RFC" value="9110"/></reference>
+        <reference anchor="RFC1035" target="https://www.rfc-editor.org/info/rfc1035"><front><title>Domain names - implementation and specification</title><author initials="P." surname="Mockapetris"/><date year="1987" month="November"/></front><seriesInfo name="RFC" value="1035"/></reference>
+        <reference anchor="RFC9112" target="https://www.rfc-editor.org/info/rfc9112"><front><title>HTTP/1.1</title><author initials="R." surname="Fielding"/><date year="2022" month="June"/></front><seriesInfo name="RFC" value="9112"/></reference>
+        <reference anchor="RFC9113" target="https://www.rfc-editor.org/info/rfc9113"><front><title>HTTP/2</title><author initials="M." surname="Thomson"/><date year="2022" month="June"/></front><seriesInfo name="RFC" value="9113"/></reference>
+        <reference anchor="RFC9114" target="https://www.rfc-editor.org/info/rfc9114"><front><title>HTTP/3</title><author initials="M." surname="Bishop"/><date year="2022" month="June"/></front><seriesInfo name="RFC" value="9114"/></reference>
         <reference anchor="APERTOID-DNS"><front><title>ApertoID: DNS-Based Agent Identity Declaration Protocol</title><author initials="A." surname="Ferro"/><date year="2026" month="March"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertoid-00"/></reference>
       </references>
       <references>
@@ -314,6 +356,15 @@ VERIFY_APERTOID_SIGNATURE(request):
 
     <section anchor="example-full">
       <name>Full Request/Response Example</name>
+      <t>All keys, hashes, and signatures in this example are real and mutually
+consistent. The agent's Ed25519 private key is the key whose 32-byte seed is
+SHA-256("apertoid-sig-example:leadhunter"); its raw public key is
+pk=ZgUmBeB/kgMsrD8+qlFCfJ7KeRse6RSJnvlL4qQnyGE (43-char unpadded Base64, the raw
+32-byte key format of [APERTOID-DNS], NOT an SPKI wrapping). The body is the
+51-byte string shown; its SHA-256 is the hex value in the signing input. The
+sig= value is the raw 64-byte Ed25519 signature over the signing input, unpadded
+Base64 (86 characters). It is shown wrapped for the page but is a single
+whitespace-free token on the wire.</t>
       <artwork><![CDATA[
 === Agent sends signed POST request ===
 
@@ -322,11 +373,16 @@ Host: api.targetservice.com
 Content-Type: application/json
 ApertoID-Signature: d=example.com; s=leadhunter;
   t=1711100000; n=a1b2c3d4e5f6;
-  sig=MEUCIQDx4fakebase64signaturehere...88chars
+  sig=w2nU1SptFk15VYlB8WUC3fV3CT5URCYFOYoRrt3W0Fx+Fq
+      81sykTOCgtcjU5mdFDTLgEkGXmjRfhaIAkj3unDQ
 
 {"query": "find leads in tech sector", "limit": 10}
 
 === Signing input that was signed ===
+
+(seven components, each terminated by LF; note the
+ trailing LF after body_hash. Shown here with a literal
+ "\n" marking each 0x0A; the bytes contain no "\n" text.)
 
 example.com\n
 leadhunter\n
@@ -334,32 +390,42 @@ leadhunter\n
 a1b2c3d4e5f6\n
 POST\n
 /mcp/tools/search\n
-<sha256-hex-of-body>\n
+628e22adadb97ae8d0de9bbf50b3556d252763f2d5710c2c6b34\
+2173c1aa4675\n
+
+(The body_hash line is the 64-hex-char SHA-256 of the
+ body, shown wrapped with a trailing "\" continuation;
+ it is one line followed by a single LF. The full signing
+ input is 135 bytes and ends with 0x0A.)
 
 === Verifier checks ===
 
 1. Parse header: d=example.com, s=leadhunter
 2. Timestamp 1711100000 within 300s of now: OK
-3. Nonce a1b2c3d4e5f6 not in cache: OK, cache it
+3. Nonce a1b2c3d4e5f6 not in cache: OK (do NOT cache yet)
 4. DNS: _apertoid.example.com -> policy p=reject
-5. DNS: leadhunter._apertoid.example.com -> pk=MCow...
+5. DNS: leadhunter._apertoid.example.com ->
+        pk=ZgUmBeB/kgMsrD8+qlFCfJ7KeRse6RSJnvlL4qQnyGE
 6. exp= not passed: OK
 7. Reconstruct signing_input with method=POST,
    target=/mcp/tools/search, body_hash=sha256(body)
 8. Ed25519 verify sig against signing_input with pk: OK
-9. Result: pass
+9. Signature valid -> NOW insert nonce a1b2c3d4e5f6 into
+   the cache with expiry t+300
+10. Result: pass
 
 === Same signature replayed to DELETE endpoint ===
 
 DELETE /mcp/data/all HTTP/1.1
 ApertoID-Signature: d=example.com; s=leadhunter;
   t=1711100000; n=a1b2c3d4e5f6;
-  sig=MEUCIQDx4f... (same signature)
+  sig=w2nU1SptFk15VYlB8... (same signature)
 
 Verification FAILS at step 8:
   signing_input includes "DELETE" and "/mcp/data/all"
   which differs from original "POST" and "/mcp/tools/search"
   -> Ed25519 verify FAILS -> Result: sig_invalid
+  (nonce is NOT cached, because the signature did not verify)
 ]]></artwork>
     </section>
 
@@ -372,12 +438,17 @@ Verification FAILS at step 8:
 import hashlib, time, secrets, base64
 from nacl.signing import SigningKey
 
-def sign_request(method, url_path, body, domain, selector, key):
-    t = str(int(time.time()))
-    n = secrets.token_hex(8)
+# target is the origin-form request target: path, plus "?"+query if a
+# query is present (Section 3.1). Percent-encoding is preserved as sent.
+def sign_request(method, target, body, domain, selector, key):
+    # Normalize per Section 3.1: d/s/n lowercase, method uppercase.
+    domain, selector = domain.lower(), selector.lower()
+    method = method.upper()
+    t = str(int(time.time()))          # canonical decimal, no zero-pad
+    n = secrets.token_hex(8)           # 16 lowercase hex chars
     body_hash = hashlib.sha256(body).hexdigest()
     signing_input = f"{domain}\n{selector}\n{t}\n{n}\n"
-    signing_input += f"{method}\n{url_path}\n{body_hash}\n"
+    signing_input += f"{method}\n{target}\n{body_hash}\n"
     sig = key.sign(signing_input.encode()).signature
     sig_b64 = base64.b64encode(sig).decode().rstrip("=")
     return {
@@ -391,14 +462,23 @@ def verify_request(request):
     if not header:
         return "unsigned"
     tags = parse_tags(header)  # extract d, s, t, n, sig
-    # ... check timestamp, nonce, DNS lookup, then:
+    # ... check timestamp, nonce (read only), DNS lookup, then:
+    # Reconstruct the origin-form target = path [ "?" query ] exactly as
+    # sent; request.path alone DROPS the query and would break the sig.
+    target = request.path
+    if request.query_string:
+        target += "?" + request.query_string
     body_hash = hashlib.sha256(request.body).hexdigest()
     signing_input = (
-        f"{tags['d']}\n{tags['s']}\n{tags['t']}\n{tags['n']}\n"
-        f"{request.method}\n{request.path}\n{body_hash}\n"
+        f"{tags['d'].lower()}\n{tags['s'].lower()}\n"
+        f"{tags['t']}\n{tags['n'].lower()}\n"
+        f"{request.method.upper()}\n{target}\n{body_hash}\n"
     )
     pubkey = get_apertoid_pubkey(tags['d'], tags['s'])  # DNS
-    return verify_ed25519(pubkey, signing_input, tags['sig'])
+    ok = verify_ed25519(pubkey, signing_input, tags['sig'])
+    # Only now, after the signature verifies, insert n= into the nonce
+    # cache (Section 4, step 9a).
+    return ok
 ]]></artwork>
       <t>Reference implementations in Python, Go, and JavaScript are maintained at https://github.com/ApertoID.</t>
     </section>

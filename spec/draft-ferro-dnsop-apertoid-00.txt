@@ -437,8 +437,10 @@ Internet-Draft                  ApertoID                      March 2026
                         ; "%" enables percent-encoding per RFC 3986.
    domain-name        = label *("." label)
    label              = ldh-label / underscore-label
-   ldh-label          = ALPHA *(ALPHA / DIGIT / "-") ; RFC 1035 preferred
-   underscore-label   = "_" 1*(ALPHA / DIGIT / "-")  ; RFC 8552 scoped
+   ldh-label          = alnum *(alnum / "-")   ; RFC 1035; LDH, leading
+                                               ; digit ok, no edge hyphen
+   underscore-label   = "_" 1*(alnum / "-")    ; RFC 8552 scoped
+   alnum              = ALPHA / DIGIT
 
    Tags are case-insensitive.  Values are case-sensitive unless
    otherwise specified.  Any amount of whitespace (WSP) on either side
