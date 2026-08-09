@@ -1,0 +1,542 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE rfc [
+  <!ENTITY nbsp    "&#160;">
+  <!ENTITY zwsp   "&#8203;">
+  <!ENTITY nbhy   "&#8209;">
+  <!ENTITY wj     "&#8288;">
+]>
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude"
+     ipr="trust200902"
+     docName="draft-ferro-dnsop-apertoid-00"
+     category="std"
+     consensus="true"
+     submissionType="IETF"
+     xml:lang="en"
+     version="3">
+
+  <front>
+    <title abbrev="ApertoID">ApertoID: DNS-Based Agent Identity Declaration Protocol</title>
+    <seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertoid-00"/>
+    <author fullname="Andrea Ferro" initials="A." surname="Ferro">
+      <organization>ApertoID</organization>
+      <address>
+        <postal><city>Verona</city><country>Italy</country></postal>
+        <email>irn@irn3.com</email>
+        <uri>https://github.com/ApertoID</uri>
+      </address>
+    </author>
+    <date year="2026" month="March" day="22"/>
+    <area>Operations and Management</area>
+    <workgroup>DNSOP</workgroup>
+    <keyword>DNS</keyword><keyword>AI Agent</keyword><keyword>Identity</keyword><keyword>Authentication</keyword><keyword>Ed25519</keyword><keyword>MCP</keyword>
+    <abstract>
+      <t>This document defines ApertoID, a DNS-based protocol that enables domain owners to declare authorized AI agents acting on their behalf, publish cryptographic keys for agent identity verification, and specify enforcement policies for unauthorized agents. ApertoID uses existing DNS TXT records under the "_apertoid" underscore-scoped domain name to provide a decentralized, standards-based mechanism for AI agent identity declaration and verification.</t>
+      <t>ApertoID defines two record types: a Policy Record analogous to DMARC that specifies domain-level enforcement behavior, and Agent Declaration Records analogous to DKIM key records that bind agent endpoints to Ed25519 public keys with mandatory expiration. A companion document <xref target="APERTOID-SIG"/> defines the HTTP request signing mechanism that enables agents to cryptographically prove their identity on each request.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="introduction">
+      <name>Introduction</name>
+      <t>The rapid proliferation of AI agents acting autonomously on the internet has created a fundamental identity gap. When an AI agent claims to act on behalf of a domain (e.g., "I represent example.com"), no standard protocol exists to verify this claim. The current internet infrastructure — designed for human users operating browsers — provides no mechanism to distinguish legitimate AI agents from impersonators, to verify which domain authorized an agent, or to enforce policies when verification fails.</t>
+      <t>This gap is causing measurable harm. In the Amazon v. Perplexity litigation (2025-2026), an AI agent disguised itself as a standard web browser to access services under false pretenses. The Salesloft-Drift OAuth breach (2025) exploited over-permissioned machine tokens to compromise over 700 companies. Research indicates that non-human identities outnumber human identities by a factor of 144:1 in enterprise environments, yet 88% of organizations lack identity controls for AI systems.</t>
+      <t>Email faced an analogous identity problem two decades ago: any server could send email claiming any sender address. The solution was a layered DNS-based authentication framework: SPF <xref target="RFC7208"/> declared authorized sending IPs, DKIM <xref target="RFC6376"/> provided cryptographic signatures, and DMARC <xref target="RFC7489"/> unified them with enforcement policies. ApertoID applies the same proven architectural pattern to AI agent identity.</t>
+      <t>ApertoID is designed to complement, not replace, existing agent discovery mechanisms such as DNS-AID <xref target="I-D.mozleywilliams-dnsop-dnsaid"/> and agent authentication frameworks such as <xref target="I-D.klrc-aiagent-auth"/>. It also complements application-layer agent protocols such as the Model Context Protocol (MCP) and Agent-to-Agent (A2A) protocol. DNS-AID provides discovery ("find the agents for this domain"); <xref target="I-D.klrc-aiagent-auth"/> provides a composable authentication framework; ApertoID provides DNS-based authorization and identity declaration ("verify that this agent is genuinely authorized by this domain").</t>
+      <t>The ApertoID protocol builds on the same DNS infrastructure philosophy as the ApertoDNS Protocol <xref target="I-D.ferro-dnsop-apertodns-protocol"/>, which modernized Dynamic DNS updates using well-known URIs and RESTful patterns. Both protocols demonstrate that DNS infrastructure can be extended through lightweight, deployable mechanisms without requiring changes to DNS servers or resolvers.</t>
+      <t>Additionally, the EU AI Act (Regulation 2024/1689), Article 50, requires AI systems interacting with natural persons to identify themselves as AI in a machine-readable format, effective August 2, 2026. ApertoID's optional "type" field provides a DNS-based mechanism to satisfy this requirement.</t>
+      <section anchor="requirements-language">
+        <name>Requirements Language</name>
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 <xref target="RFC2119"/> <xref target="RFC8174"/> when, and only when, they appear in all capitals, as shown here.</t>
+      </section>
+    </section>
+
+
+    <section anchor="comparison">
+      <name>Comparison with Existing Approaches</name>
+      <t>Several related efforts address aspects of AI agent identity and discovery. ApertoID is designed to complement these efforts, not replace them:</t>
+      <dl>
+        <dt>DANE (RFC 6698)</dt><dd>DANE authenticates TLS certificates for servers via TLSA DNS records. However, DANE binds identity to a TLS endpoint (server), not to an agent. Multiple agents may share a server, and a single agent may operate across multiple servers. ApertoID binds identity to the agent itself, independent of the underlying TLS infrastructure.</dd>
+        <dt>DNS-AID (draft-mozleywilliams-dnsop-dnsaid)</dt><dd>DNS-AID provides DNS-based discovery of agents associated with a domain using SVCB records. It answers "what agents does this domain have?" but does not provide cryptographic identity binding or enforcement policies. ApertoID answers "is this specific agent genuinely authorized by this domain?" The two are complementary.</dd>
+        <dt>AIMS (draft-klrc-aiagent-auth)</dt><dd>AIMS proposes an agent authentication framework composing SPIFFE, WIMSE, and OAuth 2.0. It is designed for intra-organization authentication but does not address cross-domain trust bootstrapping via DNS. ApertoID provides the DNS-based trust anchor that frameworks like AIMS can build upon.</dd>
+        <dt>ANS (OWASP Agent Name Service)</dt><dd>ANS is a centralized registry with PKI-based identity. ApertoID is fully decentralized, using existing DNS infrastructure with no central registry, making it deployable by any domain owner without third-party registration.</dd>
+        <dt>HTTP Message Signatures (RFC 9421)</dt><dd>RFC 9421 provides a general-purpose HTTP signing framework. ApertoID-Signature (defined in the companion document <xref target="APERTOID-SIG"/>) is a deliberately simplified, single-purpose mechanism optimized for AI agent identity verification with Ed25519 only. It is designed to be implementable in minimal code without requiring the full complexity of RFC 9421's component identifiers and algorithm negotiation.</dd>
+      </dl>
+    </section>
+
+    <section anchor="terminology">
+      <name>Terminology</name>
+      <dl>
+        <dt>Agent</dt><dd>A software system that acts autonomously on behalf of a domain, typically an AI-powered service that interacts with external systems via HTTP-based protocols (e.g., MCP, A2A, REST APIs).</dd>
+        <dt>Declaring Domain</dt><dd>The domain that publishes ApertoID DNS records to declare its authorized agents. Analogous to the "domain owner" in SPF/DKIM/DMARC.</dd>
+        <dt>Agent Selector</dt><dd>A label that uniquely identifies an agent within a declaring domain. Used as the leftmost label in the agent declaration record name (e.g., "leadhunter" in "leadhunter._apertoid.example.com"). Analogous to the DKIM selector.</dd>
+        <dt>Verifier</dt><dd>An entity that queries ApertoID DNS records to determine whether an agent is authorized by the claimed domain and, optionally, to verify the agent's cryptographic identity.</dd>
+        <dt>Policy Record</dt><dd>A DNS TXT record at "_apertoid.&lt;domain&gt;" that specifies the domain's ApertoID enforcement policy. Analogous to a DMARC record.</dd>
+        <dt>Agent Declaration Record</dt><dd>A DNS TXT record at "&lt;selector&gt;._apertoid.&lt;domain&gt;" that declares an authorized agent with its endpoint URL, public key, and metadata. Analogous to a DKIM key record.</dd>
+      </dl>
+    </section>
+
+    <section anchor="protocol-overview">
+      <name>Protocol Overview</name>
+      <t>ApertoID operates in two layers, both implemented as DNS TXT records under the "_apertoid" underscore-scoped name:</t>
+      <ol>
+        <li><strong>Policy Layer:</strong> A single record at "_apertoid.&lt;domain&gt;" declares that the domain participates in ApertoID and specifies the enforcement policy (reject, warn, or none) for agents that fail verification. This is analogous to DMARC.</li>
+        <li><strong>Identity Layer:</strong> One record per authorized agent at "&lt;selector&gt;._apertoid.&lt;domain&gt;" declares the agent's endpoint URL, Ed25519 public key, type classification, and expiration. This is analogous to DKIM key records.</li>
+      </ol>
+      <t>A companion document <xref target="APERTOID-SIG"/> defines a third layer: the ApertoID-Signature HTTP header that agents attach to outgoing requests to prove their identity cryptographically. This document focuses exclusively on the DNS records and their semantics.</t>
+      <t>The verification flow proceeds as follows:</t>
+      <ol>
+        <li>An agent makes a request claiming to represent a domain (e.g., via the ApertoID-Signature header or an out-of-band claim).</li>
+        <li>The verifier queries "_apertoid.&lt;claimed_domain&gt;" to obtain the policy record.</li>
+        <li>The verifier queries "&lt;selector&gt;._apertoid.&lt;claimed_domain&gt;" to obtain the agent declaration record.</li>
+        <li>The verifier checks that the agent's endpoint URL matches the declared URL, that the public key has not expired, and optionally that the agent's presented key matches the declared key.</li>
+        <li>If verification fails, the verifier applies the enforcement policy specified in the policy record.</li>
+      </ol>
+      <t>Note: Without the cryptographic signature mechanism defined in <xref target="APERTOID-SIG"/>, ApertoID provides authorization-level assurance only — the domain has declared which agents are authorized, but agents cannot actively prove their identity on each request. This is analogous to how SPF provides authorization (which IPs may send) without DKIM's cryptographic proof. Full identity verification requires both this document and <xref target="APERTOID-SIG"/>.</t>
+    </section>
+
+    <section anchor="record-syntax">
+      <name>Record Syntax</name>
+      <t>Both ApertoID record types use the same syntax: a DNS TXT record containing semicolon-separated tag-value pairs. This section defines the formal grammar using ABNF <xref target="RFC5234"/>.</t>
+      <section anchor="abnf">
+        <name>ABNF Definition</name>
+        <artwork type="abnf"><![CDATA[
+apertoid-record = version-tag *( *WSP ";" *WSP tag-value )
+version-tag     = "v" "=" "APERTOID1"
+tag-value       = tag "=" value
+tag             = 1*ALPHA
+value           = 1*value-char
+value-char      = %x21-3A / %x3C-7E   ; VCHAR excluding ";" (%x3B)
+WSP             = SP / HTAB
+
+; Policy Record specific tags
+policy-tag      = "p" "=" ( "reject" / "warn" / "none" )
+rua-tag         = "rua" "=" "mailto:" email-address
+email-address   = local-part "@" domain-name
+                  ; Mailbox syntax, see RFC 5321 Section 4.1.2
+local-part      = dot-atom
+dot-atom        = 1*atext *("." 1*atext)
+atext           = ALPHA / DIGIT / "!" / "#" / "$" / "%" / "&" / "'" /
+                  "*" / "+" / "-" / "/" / "=" / "?" / "^" / "_" /
+                  "`" / "{" / "|" / "}" / "~"
+
+; Agent Declaration Record specific tags
+url-tag         = "url" "=" https-uri
+keytype-tag     = "k" "=" "ed25519"
+pubkey-tag      = "pk" "=" base64-ed25519
+exp-tag         = "exp" "=" 1*DIGIT
+type-tag        = "type" "=" ( "ai" / "human" / "hybrid" )
+include-tag     = "include" "=" domain-name
+status-tag      = "status" "=" "revoked"
+prev-tag        = "prev" "=" "sig:" base64-ed25519-sig
+
+; Value format definitions
+base64-ed25519     = 43*43(BASE64CHAR)   ; 32 bytes, unpadded = 43 chars
+base64-ed25519-sig = 86*86(BASE64CHAR)   ; 64 bytes, unpadded = 86 chars
+BASE64CHAR         = ALPHA / DIGIT / "+" / "/"
+https-uri          = "https://" 1*URI-CHAR
+URI-CHAR           = ALPHA / DIGIT / "-" / "." / "_" / "~" /
+                     ":" / "/" / "?" / "#" / "[" / "]" / "@" /
+                     "!" / "$" / "&" / "'" / "(" / ")" / "*" /
+                     "+" / "," / "=" / "%"
+                     ; ";" (the tag separator) is NOT permitted; any ";"
+                     ; in a URL MUST be percent-encoded as "%3B". "%"
+                     ; enables percent-encoding per RFC 3986.
+domain-name        = label *("." label)
+label              = ldh-label / underscore-label
+ldh-label          = ALPHA *(ALPHA / DIGIT / "-") ; RFC 1035 preferred syntax
+underscore-label   = "_" 1*(ALPHA / DIGIT / "-")  ; RFC 8552 underscore-scoped
+]]></artwork>
+        <t>Tags are case-insensitive. Values are case-sensitive unless otherwise specified. Any amount of whitespace (WSP) on either side of a ";" separator is OPTIONAL and MUST be ignored by parsers. The ";" character is reserved as the tag-value separator and MUST NOT appear literally within a value; a ";" that is part of a value (for example a matrix or path parameter in a URL) MUST be percent-encoded as "%3B" per <xref target="RFC3986"/>. The "%" character is permitted in "url" values to allow percent-encoding. Unknown tags MUST be ignored by verifiers to allow forward compatibility. The email-address production follows the Mailbox / Local-part syntax defined in <xref target="RFC5321"/> Section 4.1.2; the "local-part" here uses the dot-atom form and, unlike a bare 1*VCHAR, does not include "@", removing any ambiguity in locating the domain. A "label" is either an ordinary letter-digit-hyphen label following the preferred name syntax of <xref target="RFC1035"/>, or an underscore-scoped label beginning with "_" as defined in <xref target="RFC8552"/>; the latter is REQUIRED so that "include" targets such as "agent1._apertoid.salesforce.com", which contain the "_apertoid" node name, are grammatical.</t>
+        <t>A tag defined by this specification MUST NOT appear more than once in a single record. If a verifier encounters a duplicated known tag (for example two "url" tags or two "p" tags), it MUST treat the record as malformed and return "permerror" (see <xref target="verification"/>), rather than choosing one occurrence. This matches the handling of duplicate tags in DKIM <xref target="RFC6376"/> and DMARC <xref target="RFC7489"/>. This rule applies only to the tags defined here; because unknown tags are ignored for forward compatibility, a repeated unknown tag does not by itself invalidate the record. For the purpose of this rule, "known tag" is absolute: it means any of the tags defined by this specification ("v", "p", "rua", "url", "k", "pk", "exp", "type", "include", "status", "prev"), regardless of the record type implied by the DNS name. This duplicate-detection check is purely syntactic and is applied before, and independently of, the record-type-relative semantic interpretation described in <xref target="policy-location"/>: a tag that is semantically irrelevant at a given record type (and therefore ignored as if unknown when interpreting the record) is nonetheless a duplicated known tag for syntax purposes if it appears more than once.</t>
+      </section>
+    </section>
+
+    <section anchor="policy-record">
+      <name>Policy Record</name>
+      <section anchor="policy-location">
+        <name>Record Location</name>
+        <t>The ApertoID Policy Record is a DNS TXT record published at:</t>
+        <artwork><![CDATA[
+_apertoid.<domain>
+]]></artwork>
+        <t>The underscore-scoped name "_apertoid" MUST be registered per <xref target="RFC8552"/>. A domain MUST NOT publish more than one ApertoID Policy Record. If multiple TXT records exist at this name, the verifier MUST select the record whose first tag is a valid version tag with the value "APERTOID1" (that is, the record parses as an ApertoID record per <xref target="abnf"/>) and discard the others. This selection MUST be performed on the parsed version tag, NOT by a literal byte-prefix match on the string "v=APERTOID1": because tag names are case-insensitive and optional whitespace may precede the first tag, a record beginning "V=APERTOID1" or " v=APERTOID1" is equally valid and MUST NOT be rejected merely because its leading bytes differ.</t>
+        <t>The two ApertoID record types are distinguished solely by the DNS name at which they are published, NOT by their content: a Policy Record is the record at "_apertoid.&lt;domain&gt;", and an Agent Declaration Record is a record at "&lt;selector&gt;._apertoid.&lt;domain&gt;". Both begin with "v=APERTOID1" and share the same tag-value grammar. A verifier MUST determine which record type it is processing from the query name it used, and MUST NOT attempt to infer the record type from the presence or absence of particular tags. Policy tags ("p", "rua") appearing at an agent name, or agent tags ("url", "k", "pk", etc.) appearing at the policy name, MUST be ignored as unknown tags for that record type in accordance with the forward-compatibility rule of <xref target="abnf"/>. This "ignore as unknown for that type" rule is a semantic-interpretation rule and is distinct from the purely syntactic duplicate-tag rule of <xref target="abnf"/>: a tag ignored here because it is irrelevant at this record type is still a "known tag" for duplicate detection, so a record that repeats any such tag remains malformed ("permerror").</t>
+      </section>
+      <section anchor="policy-syntax-ex">
+        <name>Example</name>
+        <artwork><![CDATA[
+_apertoid.example.com. 3600 IN TXT
+  "v=APERTOID1; p=reject; rua=mailto:apertoid@example.com"
+]]></artwork>
+      </section>
+      <section anchor="policy-tags">
+        <name>Policy Tags</name>
+        <dl>
+          <dt>v (REQUIRED)</dt><dd>Protocol version. MUST be "APERTOID1" for this specification. This tag MUST be the first tag in the record.</dd>
+          <dt>p (REQUIRED)</dt><dd><t>Enforcement policy for agents that fail verification. Valid values:</t>
+            <dl>
+              <dt>reject</dt><dd>The verifier SHOULD reject requests from agents that fail verification.</dd>
+              <dt>warn</dt><dd>The verifier SHOULD accept but flag requests from agents that fail verification.</dd>
+              <dt>none</dt><dd>The verifier SHOULD take no specific action on failure. Used for monitoring and gradual deployment.</dd>
+            </dl>
+            <t>Domain owners SHOULD deploy with "p=none" initially and progress to "p=reject" after confirming that legitimate agents pass verification.</t></dd>
+          <dt>rua (OPTIONAL)</dt><dd>Reporting URI for aggregate verification reports. MUST be a "mailto:" URI. Verifiers that support reporting SHOULD send periodic aggregate reports to this address. The format of aggregate reports is outside the scope of this document.</dd>
+        </dl>
+      </section>
+    </section>
+
+    <section anchor="agent-declaration">
+      <name>Agent Declaration Record</name>
+      <section anchor="agent-location">
+        <name>Record Location</name>
+        <t>Each authorized agent is declared in a separate DNS TXT record at:</t>
+        <artwork><![CDATA[
+<selector>._apertoid.<domain>
+]]></artwork>
+        <t>The &lt;selector&gt; is a label chosen by the domain owner to identify the agent. Selectors MUST conform to the syntax of a DNS label: 1-63 characters, consisting of alphanumeric characters and hyphens, not starting or ending with a hyphen. Selectors are case-insensitive.</t>
+      </section>
+      <section anchor="agent-syntax-ex">
+        <name>Example</name>
+        <artwork><![CDATA[
+leadhunter._apertoid.example.com. 3600 IN TXT
+  "v=APERTOID1; url=https://agent.example.com/mcp;
+   k=ed25519; pk=2TmyMjizLUEeS0F9GJvGedF4syZFYvrWl+oFHv56VSY;
+   type=ai; exp=1759276800"
+]]></artwork>
+        <t>Note: The record above is shown on multiple lines for readability. In practice, it is a single TXT record string. If the record exceeds 255 bytes, it MUST be split into multiple character-strings within a single TXT RDATA as specified in <xref target="RFC1035"/> Section 3.3.14.</t>
+      </section>
+      <section anchor="agent-tags">
+        <name>Agent Declaration Tags</name>
+        <dl>
+          <dt>v (REQUIRED)</dt><dd>Protocol version. MUST be "APERTOID1". MUST be the first tag.</dd>
+          <dt>url (REQUIRED in non-revocation records, mutually exclusive with include)</dt><dd>The canonical endpoint URL of the authorized agent. MUST be an HTTPS URI. Required in every Agent Declaration Record except a revocation record (see "status" below and <xref target="delegation"/>); a record MUST contain either "url" or "include" unless it carries "status=revoked". The verifier compares this URL against the agent's actual endpoint. URL matching is performed as specified in <xref target="url-matching"/>.</dd>
+          <dt>k (RECOMMENDED)</dt><dd>Key type. MUST be "ed25519" for this specification. Additional key types MAY be registered via the ApertoID Key Type Registry (<xref target="iana-key-registry"/>). If "k" is present, the "pk" tag MUST also be present, and the "exp" tag MUST also be present. The dependency is one-directional: "k" requires "pk", but "pk" MAY appear without "k" (see below).</dd>
+          <dt>pk (RECOMMENDED)</dt><dd>The agent's raw 32-byte Ed25519 public key, encoded as unpadded Base64 per <xref target="RFC4648"/> Section 4 (i.e., without the trailing "=" padding). For Ed25519, this is exactly 43 characters (32 bytes encoded unpadded). The value is the raw public key, NOT a DER SubjectPublicKeyInfo (SPKI) wrapping. This key is used by verifiers to authenticate the agent's identity via the ApertoID-Signature mechanism defined in <xref target="APERTOID-SIG"/>. A "pk" tag MAY be present without a "k" tag; in that case the key type defaults to "ed25519", which is the only type defined by this specification. A record MAY legitimately carry neither "k" nor "pk": for example, the "url"-only deployment stage described in <xref target="deployment-guidance"/>, in which the agent is authorized by URL but publishes no cryptographic key and consequently has no "exp" (such a record does not expire at the DNS layer), or a revocation record (see <xref target="revocation"/>), which carries only "v" and "status=revoked".</dd>
+          <dt>exp (REQUIRED when k is present)</dt><dd>Key expiration as a Unix timestamp (seconds since 1970-01-01T00:00:00Z). Verifiers MUST reject keys whose expiration has passed. Domain owners SHOULD set expiration to no more than 90 days in the future and rotate keys before expiration.</dd>
+          <dt>type (OPTIONAL)</dt><dd><t>Agent type classification. Valid values are registered in the ApertoID Agent Type Registry (<xref target="iana-type-registry"/>). Initial values:</t>
+            <dl><dt>ai</dt><dd>Autonomous AI agent.</dd><dt>human</dt><dd>Human-operated tool or interface.</dd><dt>hybrid</dt><dd>AI-assisted system with human oversight.</dd></dl>
+            <t>This field supports compliance with regulations that require AI systems to identify themselves, such as EU AI Act Article 50(2).</t></dd>
+          <dt>include (OPTIONAL, mutually exclusive with url)</dt><dd>Delegation to a third-party agent declaration. The value is a fully qualified domain name pointing to an Agent Declaration Record published by the third party. See <xref target="delegation"/>.</dd>
+          <dt>status (OPTIONAL)</dt><dd>Agent status. If set to "revoked", verifiers MUST treat this agent as unauthorized regardless of other fields. A record carrying "status=revoked" is a revocation record: it MUST contain "v" and "status=revoked", and is exempt from the "url"-or-"include" requirement (it need not, and typically does not, carry either). See <xref target="revocation"/>.</dd>
+          <dt>prev (OPTIONAL)</dt><dd>Key rotation continuity proof. Contains a signature of the new public key made with the old private key, prefixed by "sig:". See <xref target="key-rotation"/>.</dd>
+        </dl>
+      </section>
+      <section anchor="agent-size">
+        <name>Record Size Considerations</name>
+        <t>A typical Agent Declaration Record with all recommended fields is approximately 170 bytes, fitting comfortably within a single 255-byte TXT character-string and well within the practical UDP DNS response size limit. Each agent has its own record at a distinct DNS name, so the number of agents per domain is not constrained by record size.</t>
+      </section>
+    </section>
+
+    <section anchor="delegation">
+      <name>Delegation</name>
+      <t>When a domain uses third-party AI agent services, the domain owner delegates agent authorization by publishing an Agent Declaration Record with an "include" tag pointing to the third party's own ApertoID record.</t>
+      <artwork><![CDATA[
+; Domain delegates to a Salesforce agent
+salesforce._apertoid.example.com. 3600 IN TXT
+  "v=APERTOID1; include=agent1._apertoid.salesforce.com"
+
+; Salesforce publishes the actual agent declaration
+agent1._apertoid.salesforce.com. 3600 IN TXT
+  "v=APERTOID1; url=https://agents.salesforce.com/crm;
+   k=ed25519; pk=Hr4Z0cjlqCxFhRYKi2uEOkznCCXMELANsOif7KRkhJk;
+   type=ai; exp=1759276800"
+]]></artwork>
+      <t>Verifiers MUST follow "include" references to resolve the final Agent Declaration Record. To prevent abuse and excessive DNS lookups:</t>
+      <ul>
+        <li>The maximum delegation depth is 2 (i.e., the original record plus one level of "include").</li>
+        <li>A verifier MUST NOT follow more than 10 "include" references in total per verification attempt.</li>
+        <li>Circular "include" references MUST be detected and treated as a verification failure.</li>
+      </ul>
+      <t>The "include" tag is mutually exclusive with the "url" tag: a record MUST NOT contain both. Every Agent Declaration Record that is NOT a revocation record MUST contain either "url" or "include". A revocation record (a record containing "status=revoked", see <xref target="revocation"/>) is exempt from this requirement: it MUST contain "v" and "status=revoked" and MUST NOT be required to carry "url" or "include". Verifiers MUST NOT treat the absence of "url" and "include" as a syntax error when "status=revoked" is present.</t>
+    </section>
+
+    <section anchor="key-publication">
+      <name>Key Publication</name>
+      <section anchor="key-type">
+        <name>Ed25519 Key Format</name>
+        <t>ApertoID uses Ed25519 <xref target="RFC8032"/> as its mandatory-to-implement key type. Ed25519 was chosen for compact key size (32 bytes / 43 Base64 characters, unpadded), compact signature size (64 bytes / 86 Base64 characters, unpadded), fast verification (approximately 50 microseconds), and wide implementation support across all major cryptographic libraries.</t>
+        <t>The public key is published as the raw 32-byte Ed25519 public key encoded in unpadded Base64. Implementations MUST support Ed25519. Future specifications MAY define additional key types via the ApertoID Key Type Registry (<xref target="iana-key-registry"/>).</t>
+      </section>
+      <section anchor="key-lifecycle">
+        <name>Key Lifecycle</name>
+        <t>Keys published in Agent Declaration Records MUST have an expiration timestamp in the "exp" field. Domain owners SHOULD set key expiration to no more than 90 days in the future, rotate keys at least 7 days before expiration, and use TTL values of 3600 seconds (1 hour) for Agent Declaration Records to balance caching efficiency with timely key rotation.</t>
+      </section>
+    </section>
+
+    <section anchor="revocation">
+      <name>Revocation</name>
+      <t>ApertoID provides two revocation mechanisms: immediate revocation via status record and key rotation with continuity proof.</t>
+      <section anchor="immediate-revocation">
+        <name>Immediate Revocation</name>
+        <t>To immediately revoke an agent, the domain owner replaces the Agent Declaration Record with a revocation record:</t>
+        <artwork><![CDATA[
+leadhunter._apertoid.example.com. 300 IN TXT
+  "v=APERTOID1; status=revoked"
+]]></artwork>
+        <t>Verifiers MUST check for "status=revoked" BEFORE performing any other verification steps. If "status=revoked" is present, the verifier MUST treat the agent as unauthorized.</t>
+        <t>The TTL for revocation records SHOULD be 300 seconds (5 minutes) to minimize the window during which cached records may allow a revoked agent to pass verification.</t>
+      </section>
+      <section anchor="key-rotation">
+        <name>Key Rotation</name>
+        <t>When rotating keys, the domain owner publishes a new Agent Declaration Record with the new key and a "prev" tag containing a signature proving continuity:</t>
+        <artwork><![CDATA[
+leadhunter._apertoid.example.com. 3600 IN TXT
+  "v=APERTOID1; url=https://agent.example.com/mcp;
+   k=ed25519; pk=QV8LAsXQn7cwPMrfpSs/1CbTXO6uTPdq0y9IOUGpAIQ;
+   prev=sig:bxX1qXatIGHLYDyXAZw6T2VIAWGBuwkNxGHyYJO+UPO2uWPI35gzIdsi9tg1xa6Y0lUW3PDcZJ9b6OYPMjEgDQ;
+   type=ai; exp=1762000000"
+]]></artwork>
+        <t>The "prev" tag value is constructed as follows: (1) Let "new_pubkey" be the raw 32-byte new Ed25519 public key. (2) Sign "new_pubkey" using the old Ed25519 private key, producing a 64-byte signature. (3) Encode the signature as unpadded Base64. (4) Prepend "sig:" to form the "prev" tag value.</t>
+        <t>Verifiers that have cached the previous public key SHOULD verify the "prev" signature to confirm that the key rotation was authorized by the holder of the previous key. If the "prev" signature is invalid, verifiers SHOULD treat this as a potential key compromise and apply the domain's enforcement policy.</t>
+        <t>The "prev" tag is OPTIONAL. When absent, verifiers accept the new key based solely on DNS authority (i.e., the domain owner's control of the DNS zone).</t>
+      </section>
+    </section>
+
+    <section anchor="verification">
+      <name>Verification Procedure</name>
+      <t>This section defines the procedure for verifying an agent's authorization via DNS records. Cryptographic signature verification on individual HTTP requests is defined in the companion document <xref target="APERTOID-SIG"/>.</t>
+      <section anchor="verification-inputs">
+        <name>Verification Inputs</name>
+        <t>The verifier receives: "claimed_domain" (the domain the agent claims to represent), "selector" (the agent selector), "agent_url" (the URL from which the request originates), and optionally "agent_pubkey" (the agent's presented public key). If no selector is available (e.g., no ApertoID-Signature header is present), the verifier can only confirm that the domain publishes an ApertoID policy by querying "_apertoid.&lt;claimed_domain&gt;", but cannot verify a specific agent. Full per-agent verification requires a selector, which is typically obtained from the ApertoID-Signature header defined in <xref target="APERTOID-SIG"/>.</t>
+      </section>
+      <section anchor="verification-algorithm">
+        <name>Verification Algorithm</name>
+        <artwork><![CDATA[
+VERIFY_APERTOID(claimed_domain, selector, agent_url, agent_pubkey):
+
+  1. Query TXT record at "_apertoid.<claimed_domain>"
+  2. If no record found:
+       Return result="none" (domain does not publish ApertoID)
+  3. Parse policy record; extract p= value
+  4. Query TXT record at "<selector>._apertoid.<claimed_domain>"
+  5. If no record found:
+       Return result="permerror", apply policy p=
+  6. Parse agent declaration record
+  7. If status=revoked:
+       Return result="revoked", apply policy p=
+  8. If record contains include= tag:
+       Follow delegation (max depth 2, max 10 total lookups)
+       If delegation fails: Return result="temperror"
+       Continue verification with resolved record
+  9. Check exp= timestamp:
+       If exp= is present and current_time > exp:
+         Return result="expired", apply policy p=
+       (A record with no exp= does not expire at the DNS layer;
+        see Section 7.3.)
+  10. Compare agent_url with record url= value:
+       Match rules per Section 11.4.
+       If no match: Return result="url_mismatch",
+         apply policy p=
+  11. If record contains a pk= tag AND agent_pubkey is provided:
+       Compare agent_pubkey with record pk= value
+       (the key type is that of k=, defaulting to ed25519 when
+        k= is absent; see Section 7.3)
+       If mismatch: Return result="key_mismatch",
+         apply policy p=
+  12. Return result="pass"
+]]></artwork>
+      </section>
+      <section anchor="verification-results">
+        <name>Result Values</name>
+        <dl>
+          <dt>pass</dt><dd>The agent is authorized by the domain and, if applicable, the cryptographic key matches.</dd>
+          <dt>none</dt><dd>The domain does not publish ApertoID records.</dd>
+          <dt>revoked</dt><dd>The agent has been explicitly revoked.</dd>
+          <dt>expired</dt><dd>The agent's key has expired.</dd>
+          <dt>url_mismatch</dt><dd>The agent's URL does not match the declared URL.</dd>
+          <dt>key_mismatch</dt><dd>The agent's presented key does not match the declared key.</dd>
+          <dt>permerror</dt><dd>A permanent error occurred (e.g., no agent record found, malformed syntax).</dd>
+          <dt>temperror</dt><dd>A temporary error occurred (e.g., DNS timeout, delegation failure).</dd>
+        </dl>
+      </section>
+      <section anchor="url-matching">
+        <name>URL Matching Rules</name>
+        <t>When comparing the agent's URL against the declared URL: the scheme MUST be "https" (HTTP MUST NOT be accepted); host comparison is case-insensitive per <xref target="RFC3986"/>; path comparison is case-sensitive; trailing slashes are normalized; query strings and fragments are ignored; port numbers, if present, MUST match (default HTTPS port 443 is assumed when absent).</t>
+      </section>
+    </section>
+
+    <section anchor="operational">
+      <name>Operational Considerations</name>
+      <section anchor="deployment-guidance">
+        <name>Deployment Guidance</name>
+        <t>Domain owners deploying ApertoID SHOULD follow this progression: (1) Publish a Policy Record with "p=none" and a "rua=" address to begin collecting verification data without affecting agent operations. (2) Publish Agent Declaration Records for all known authorized agents, initially without cryptographic keys (url= only). (3) Monitor aggregate reports to identify unauthorized agents. (4) Add Ed25519 keys (k= and pk= tags) to agent records. (5) Progress to "p=warn" and then "p=reject" as confidence grows.</t>
+      </section>
+      <section anchor="cdn-proxy">
+        <name>CDN and Reverse Proxy Interaction</name>
+        <t>When agents operate behind CDNs or reverse proxies, the agent's apparent URL may differ from the URL in the Agent Declaration Record. Domain owners MUST ensure that the "url=" value matches the URL as seen by verifiers, not the internal origin URL.</t>
+      </section>
+      <section anchor="ttl-guidance">
+        <name>TTL Recommendations</name>
+        <t>The following TTL values are RECOMMENDED: Policy Records: 3600 seconds (1 hour), as these change infrequently. Agent Declaration Records: 3600 seconds (1 hour), balancing caching with timely key rotation. Revocation Records: 300 seconds (5 minutes), minimizing the vulnerability window after revocation.</t>
+      </section>
+    </section>
+
+    <section anchor="security">
+      <name>Security Considerations</name>
+      <section anchor="sec-authorization-vs-identity">
+        <name>Authorization vs. Identity Verification</name>
+        <t>This document alone provides authorization-level assurance: the domain declares which agents are authorized. Without the cryptographic signature mechanism defined in <xref target="APERTOID-SIG"/>, a verifier can confirm that an agent's URL appears in the domain's DNS records but cannot confirm that the requester is genuinely that agent. An attacker with network access could potentially proxy requests through an authorized URL.</t>
+        <t>Full identity verification — where the agent proves on each request that it possesses the private key corresponding to the public key published in DNS — requires implementation of both this document and <xref target="APERTOID-SIG"/>.</t>
+      </section>
+      <section anchor="sec-dnssec">
+        <name>DNSSEC</name>
+        <t>ApertoID records SHOULD be protected by DNSSEC <xref target="RFC4033"/> <xref target="RFC4034"/> <xref target="RFC4035"/>.</t>
+        <t>Without DNSSEC, an attacker capable of DNS cache poisoning can inject fraudulent ApertoID records, including false public keys. ApertoID provides two levels of assurance: without DNSSEC, it provides authorization-level assurance comparable to SPF and DKIM records (the common case today); with DNSSEC, it provides cryptographic-level assurance where the public key in DNS is authenticated by the DNSSEC chain of trust.</t>
+        <t>Verifiers SHOULD validate DNSSEC when available and MAY treat DNSSEC-validated results with higher confidence. DNSSEC is REQUIRED for full cryptographic verification of agent identity.</t>
+      </section>
+      <section anchor="sec-key-compromise">
+        <name>Key Compromise</name>
+        <t>If an agent's Ed25519 private key is compromised, the domain owner MUST immediately publish a revocation record (<xref target="immediate-revocation"/>) with a low TTL (300 seconds). The window of vulnerability equals the TTL of the previously cached Agent Declaration Record. Domain owners SHOULD use TTL values no higher than 3600 seconds to limit the maximum vulnerability window to one hour.</t>
+      </section>
+      <section anchor="sec-delegation-abuse">
+        <name>Delegation Abuse</name>
+        <t>Attackers may attempt to abuse the delegation mechanism to create excessively long resolution chains or circular references. The limits defined in <xref target="delegation"/> (maximum depth of 2, maximum 10 lookups) mitigate this risk. Verifiers MUST enforce these limits and treat violations as permanent errors.</t>
+      </section>
+      <section anchor="sec-enumeration">
+        <name>Agent Enumeration</name>
+        <t>An adversary may attempt to enumerate a domain's agents by querying common selector names. Domain owners who wish to limit enumeration SHOULD use non-predictable selector names. DNSSEC-signed zones using NSEC3 <xref target="RFC5155"/> provide resistance against zone walking.</t>
+      </section>
+      <section anchor="sec-dns-amplification">
+        <name>DNS Amplification</name>
+        <t>ApertoID records are TXT records of moderate size (typically 170-250 bytes), comparable to DKIM key records. Standard DNS amplification mitigations (response rate limiting, BCP 38 source address validation) apply.</t>
+      </section>
+    </section>
+
+    <section anchor="privacy">
+      <name>Privacy Considerations</name>
+      <t>ApertoID records are published in DNS and are therefore publicly queryable. Domain owners should be aware that publishing ApertoID records reveals: the existence and endpoint URLs of AI agents (which may reveal internal infrastructure); the type classification ("type=ai") indicating the domain uses AI agents; and agent selectors that may reveal organizational structure. Domain owners who wish to limit exposure SHOULD use generic endpoint URLs and non-descriptive selectors.</t>
+      <t>Verifiers querying ApertoID records may reveal interest in specific domains to DNS operators. Standard DNS privacy mechanisms (DNS over TLS <xref target="RFC7858"/>, DNS over HTTPS <xref target="RFC8484"/>) mitigate this concern.</t>
+    </section>
+
+    <section anchor="iana">
+      <name>IANA Considerations</name>
+      <section anchor="iana-underscore">
+        <name>Underscore-Scoped Domain Name Registration</name>
+        <t>This document requests registration of the following entry in the "Underscored and Globally Scoped DNS Node Names" registry per <xref target="RFC8552"/>:</t>
+        <table><thead><tr><th>RR Type</th><th>_NODE NAME</th><th>Reference</th></tr></thead>
+        <tbody><tr><td>TXT</td><td>_apertoid</td><td>[this document]</td></tr></tbody></table>
+      </section>
+      <section anchor="iana-type-registry">
+        <name>ApertoID Agent Type Registry</name>
+        <t>This document requests IANA to create the "ApertoID Agent Type" registry with the following initial values. New values are registered via the "Specification Required" policy per <xref target="RFC8126"/>.</t>
+        <table>
+          <thead><tr><th>Value</th><th>Description</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td>ai</td><td>Autonomous AI agent</td><td>[this document]</td></tr>
+            <tr><td>human</td><td>Human-operated tool</td><td>[this document]</td></tr>
+            <tr><td>hybrid</td><td>AI-assisted with human oversight</td><td>[this document]</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section anchor="iana-key-registry">
+        <name>ApertoID Key Type Registry</name>
+        <t>This document requests IANA to create the "ApertoID Key Type" registry with the following initial value. New values are registered via the "Specification Required" policy per <xref target="RFC8126"/>.</t>
+        <table>
+          <thead><tr><th>Value</th><th>Description</th><th>Key Size</th><th>Reference</th></tr></thead>
+          <tbody>
+            <tr><td>ed25519</td><td>Ed25519 (EdDSA on Curve25519)</td><td>32 bytes</td><td><xref target="RFC8032"/></td></tr>
+          </tbody>
+        </table>
+      </section>
+    </section>
+
+  </middle>
+
+  <back>
+    <references>
+      <name>References</name>
+      <references>
+        <name>Normative References</name>
+        <reference anchor="RFC1035" target="https://www.rfc-editor.org/info/rfc1035"><front><title>Domain names - implementation and specification</title><author initials="P." surname="Mockapetris"/><date year="1987" month="November"/></front><seriesInfo name="RFC" value="1035"/></reference>
+        <reference anchor="RFC2119" target="https://www.rfc-editor.org/info/rfc2119"><front><title>Key words for use in RFCs to Indicate Requirement Levels</title><author initials="S." surname="Bradner"/><date year="1997" month="March"/></front><seriesInfo name="RFC" value="2119"/></reference>
+        <reference anchor="RFC3986" target="https://www.rfc-editor.org/info/rfc3986"><front><title>Uniform Resource Identifier (URI): Generic Syntax</title><author initials="T." surname="Berners-Lee"/><date year="2005" month="January"/></front><seriesInfo name="RFC" value="3986"/></reference>
+        <reference anchor="RFC4033" target="https://www.rfc-editor.org/info/rfc4033"><front><title>DNS Security Introduction and Requirements</title><author initials="R." surname="Arends"/><date year="2005" month="March"/></front><seriesInfo name="RFC" value="4033"/></reference>
+        <reference anchor="RFC4034" target="https://www.rfc-editor.org/info/rfc4034"><front><title>Resource Records for the DNS Security Extensions</title><author initials="R." surname="Arends"/><date year="2005" month="March"/></front><seriesInfo name="RFC" value="4034"/></reference>
+        <reference anchor="RFC4035" target="https://www.rfc-editor.org/info/rfc4035"><front><title>Protocol Modifications for the DNS Security Extensions</title><author initials="R." surname="Arends"/><date year="2005" month="March"/></front><seriesInfo name="RFC" value="4035"/></reference>
+        <reference anchor="RFC4648" target="https://www.rfc-editor.org/info/rfc4648"><front><title>The Base16, Base32, and Base64 Data Encodings</title><author initials="S." surname="Josefsson"/><date year="2006" month="October"/></front><seriesInfo name="RFC" value="4648"/></reference>
+        <reference anchor="RFC5155" target="https://www.rfc-editor.org/info/rfc5155"><front><title>DNS Security (DNSSEC) Hashed Authenticated Denial of Existence</title><author initials="B." surname="Laurie"/><date year="2008" month="March"/></front><seriesInfo name="RFC" value="5155"/></reference>
+        <reference anchor="RFC5234" target="https://www.rfc-editor.org/info/rfc5234"><front><title>Augmented BNF for Syntax Specifications: ABNF</title><author initials="D." surname="Crocker"/><date year="2008" month="January"/></front><seriesInfo name="RFC" value="5234"/></reference>
+        <reference anchor="RFC8032" target="https://www.rfc-editor.org/info/rfc8032"><front><title>Edwards-Curve Digital Signature Algorithm (EdDSA)</title><author initials="S." surname="Josefsson"/><date year="2017" month="January"/></front><seriesInfo name="RFC" value="8032"/></reference>
+        <reference anchor="RFC8126" target="https://www.rfc-editor.org/info/rfc8126"><front><title>Guidelines for Writing an IANA Considerations Section in RFCs</title><author initials="M." surname="Cotton"/><date year="2017" month="June"/></front><seriesInfo name="RFC" value="8126"/></reference>
+        <reference anchor="RFC8174" target="https://www.rfc-editor.org/info/rfc8174"><front><title>Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words</title><author initials="B." surname="Leiba"/><date year="2017" month="May"/></front><seriesInfo name="RFC" value="8174"/></reference>
+        <reference anchor="RFC8552" target="https://www.rfc-editor.org/info/rfc8552"><front><title>Scoped Interpretation of DNS Resource Records through Underscored Naming of Attribute Leaves</title><author initials="D." surname="Crocker"/><date year="2019" month="March"/></front><seriesInfo name="RFC" value="8552"/></reference>
+      </references>
+      <references>
+        <name>Informative References</name>
+        <reference anchor="RFC6376" target="https://www.rfc-editor.org/info/rfc6376"><front><title>DomainKeys Identified Mail (DKIM) Signatures</title><author initials="D." surname="Crocker"/><date year="2011" month="September"/></front><seriesInfo name="RFC" value="6376"/></reference>
+        <reference anchor="RFC7208" target="https://www.rfc-editor.org/info/rfc7208"><front><title>Sender Policy Framework (SPF)</title><author initials="S." surname="Kitterman"/><date year="2014" month="April"/></front><seriesInfo name="RFC" value="7208"/></reference>
+        <reference anchor="RFC7489" target="https://www.rfc-editor.org/info/rfc7489"><front><title>Domain-based Message Authentication, Reporting, and Conformance (DMARC)</title><author initials="M." surname="Kucherawy"/><date year="2015" month="March"/></front><seriesInfo name="RFC" value="7489"/></reference>
+        <reference anchor="RFC5321" target="https://www.rfc-editor.org/info/rfc5321"><front><title>Simple Mail Transfer Protocol</title><author initials="J." surname="Klensin"/><date year="2008" month="October"/></front><seriesInfo name="RFC" value="5321"/></reference>
+        <reference anchor="RFC7858" target="https://www.rfc-editor.org/info/rfc7858"><front><title>Specification for DNS over Transport Layer Security (TLS)</title><author initials="Z." surname="Hu"/><date year="2016" month="May"/></front><seriesInfo name="RFC" value="7858"/></reference>
+        <reference anchor="RFC8484" target="https://www.rfc-editor.org/info/rfc8484"><front><title>DNS Queries over HTTPS (DoH)</title><author initials="P." surname="Hoffman"/><date year="2018" month="October"/></front><seriesInfo name="RFC" value="8484"/></reference>
+        <reference anchor="I-D.mozleywilliams-dnsop-dnsaid"><front><title>DNS Agent Identity Discovery (DNS-AID)</title><author initials="J." surname="Mozley-Williams"/><date year="2026" month="March"/></front><seriesInfo name="Internet-Draft" value="draft-mozleywilliams-dnsop-dnsaid-01"/></reference>
+        <reference anchor="I-D.klrc-aiagent-auth"><front><title>Agent Identity Management System (AIMS)</title><author initials="K." surname="Lehman"/><author initials="R." surname="Chen"/><date year="2026" month="March"/></front><seriesInfo name="Internet-Draft" value="draft-klrc-aiagent-auth-00"/></reference>
+        <reference anchor="I-D.ferro-dnsop-apertodns-protocol"><front><title>ApertoDNS Protocol: A Modern Dynamic DNS Update Protocol</title><author initials="A." surname="Ferro"/><date year="2026" month="January"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertodns-protocol-02"/></reference>
+        <reference anchor="APERTOID-SIG"><front><title>ApertoID-Signature: HTTP Request Signing for AI Agent Identity</title><author initials="A." surname="Ferro"/><date year="2026"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-httpbis-apertoid-sig-00"/><annotation>Work in progress.</annotation></reference>
+      </references>
+    </references>
+
+    <section anchor="examples">
+      <name>Complete Examples</name>
+      <section anchor="example-basic">
+        <name>Basic Deployment</name>
+        <artwork><![CDATA[
+; Policy: warn on failures, receive reports
+_apertoid.example.com. 3600 IN TXT
+  "v=APERTOID1; p=warn; rua=mailto:apertoid@example.com"
+
+; Agent: MCP server with Ed25519 key
+assistant._apertoid.example.com. 3600 IN TXT
+  "v=APERTOID1; url=https://mcp.example.com/agent;
+   k=ed25519; pk=22A9MAOrna2yu63pTR/MtR7E6ZvNr0VpuFf3iz0ZqCw;
+   type=ai; exp=1761955200"
+]]></artwork>
+      </section>
+      <section anchor="example-delegation">
+        <name>Third-Party Delegation</name>
+        <artwork><![CDATA[
+; Policy: reject unauthorized agents
+_apertoid.example.com. 3600 IN TXT
+  "v=APERTOID1; p=reject; rua=mailto:sec@example.com"
+
+; Own agent
+leadhunter._apertoid.example.com. 3600 IN TXT
+  "v=APERTOID1; url=https://agents.example.com/leadhunter;
+   k=ed25519; pk=zud6BDQnS2LuF3Lea1WJdhfo/TssKNIRHXP7N3I3Rwk;
+   type=ai; exp=1761955200"
+
+; Delegated third-party agent
+crm._apertoid.example.com. 3600 IN TXT
+  "v=APERTOID1; include=client42._apertoid.salesforce.com"
+]]></artwork>
+      </section>
+      <section anchor="example-revocation">
+        <name>Emergency Revocation and Key Rotation</name>
+        <artwork><![CDATA[
+; Step 1: Immediately revoke compromised agent
+leadhunter._apertoid.example.com. 300 IN TXT
+  "v=APERTOID1; status=revoked"
+
+; Step 2: Publish new key with rotation proof
+leadhunter._apertoid.example.com. 3600 IN TXT
+  "v=APERTOID1; url=https://agents.example.com/leadhunter;
+   k=ed25519; pk=SDjyggr4hJnmqHN7KakFCGg63jFIwb7tS3jEMcrDIq0;
+   prev=sig:ixwPd0LIcPSCoBzCFpBui04VPn2p6Hx3BKbNKEMw6q6MFVzp7p6PF97pkhKocsh7R/kZXSlWXNvkrXayHNi7AQ;
+   type=ai; exp=1764547200"
+]]></artwork>
+      </section>
+    </section>
+
+    <section anchor="integration">
+      <name>Integration with Application-Layer Protocols</name>
+      <t>This appendix is non-normative.</t>
+      <t>ApertoID is designed to be protocol-agnostic at the application layer. MCP Server Cards at "/.well-known/mcp/server-card.json" provide capability discovery; ApertoID complements MCP by providing DNS-based verification that a given MCP server is authorized by the claimed domain. A2A Agent Cards at "/.well-known/agent.json" provide agent discovery; ApertoID provides a DNS-based trust anchor independent of the agent's self-declared card. DNS-AID <xref target="I-D.mozleywilliams-dnsop-dnsaid"/> provides DNS-based agent discovery; ApertoID provides authorization and identity verification. The two are complementary: DNS-AID answers "what agents does this domain have?" while ApertoID answers "is this agent genuinely authorized by this domain?"</t>
+    </section>
+
+    <section numbered="false" anchor="acknowledgements">
+      <name>Acknowledgements</name>
+      <t>The design of ApertoID was informed by the architectural patterns established by SPF, DKIM, and DMARC for email authentication, and by DANE for DNS-based authentication of named entities. The author acknowledges the DNSOP working group participants whose feedback on draft-ferro-dnsop-apertodns-protocol shaped the approach taken in this document.</t>
+    </section>
+
+  </back>
+</rfc>

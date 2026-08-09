@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apertoid"
+version = "0.1.0"
+description = "ApertoID reference implementation (Layer 1: DNS TXT record parser) for draft-ferro-dnsop-apertoid-00"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Andrea Ferro", email = "irn@irn3.com" }]
+license = { text = "BSD-3-Clause" }
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
