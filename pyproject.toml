@@ -12,6 +12,10 @@ authors = [{ name = "Andrea Ferro", email = "irn@irn3.com" }]
 license = { text = "MIT" }
 dependencies = ["cryptography>=41"]
 
+[project.urls]
+Homepage = "https://github.com/ApertoID/apertoid"
+Repository = "https://github.com/ApertoID/apertoid"
+
 [project.optional-dependencies]
 test = ["pytest>=7"]
 
