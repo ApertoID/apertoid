@@ -231,14 +231,16 @@ def test_policy_reject_sets_enforced_reject():
     assert res.enforced_reject is True
 
 
-# --- Step 8 seam (BLOCK 3) --------------------------------------------------
+# --- Step 8 include= (delegation detail lives in test_verify_include.py) ----
 
-def test_include_seam_surfaces_honestly():
+def test_include_to_missing_target_is_permerror():
+    # BLOCK 3 replaced the old not-yet-implemented seam: an include= is now
+    # actually followed. With no record at the target, that is a permerror.
     r = _resolver(agent="v=APERTOID1; include=agent1._apertoid.salesforce.com")
     res = _verify(r)
-    assert res.outcome is Outcome.TEMPERROR
+    assert res.outcome is Outcome.PERMERROR
     assert res.step == "11.2#8"
-    assert "BLOCK 3" in res.detail  # explicit not-yet-implemented seam
+    assert res.policy is Policy.REJECT
 
 
 # --- helper unit tests ------------------------------------------------------

@@ -5,16 +5,15 @@ and the HTTP signature layer (sig.py) into the verification procedure of
 draft-ferro-dnsop-apertoid-01 Section 11.2 and the sig<->DNS bridge of
 draft-ferro-httpbis-apertoid-sig-01 Section 4.
 
-BLOCK 2 SCOPE (this commit): the CORE FLOW of verify_apertoid() -- Section 11.2
-steps 1-7, 9, 11, 12, plus Section 6.1 multi-record selection. Two steps are
-deliberately left as explicit seams for later blocks:
+SCOPE so far: verify_apertoid() core flow (Section 11.2 steps 1-7, 9, 11, 12),
+Section 6.1 multi-record selection, and (BLOCK 3) Section 8 include= delegation
+via _follow_includes(). One step remains an explicit seam:
 
-  * Step 8  (include= delegation)  -> BLOCK 3: _follow_includes()
   * Step 10 (url matching)         -> BLOCK 4: _url_matches()
 
-Each seam is marked with a TODO and a placeholder branch so the later block
-slots in without reshaping the surrounding flow. verify_request() (the sig
-bridge, F-5) is BLOCK 5 and is not built here.
+The seam is marked with a TODO so the later block slots in without reshaping the
+surrounding flow. verify_request() (the sig bridge, F-5) is BLOCK 5 and is not
+built here.
 
 RESULT TYPE (decision F-6): every outcome carries the failing step id and the
 domain's resolved policy p=, so a caller learns both "unauthorized" and "the
@@ -31,9 +30,12 @@ from typing import Optional
 from .parser import VERSION, ParsedRecord, RecordType, parse_record
 from .resolver import LookupStatus, Resolver, TxtLookup
 
-# Section 8 delegation limits (used by BLOCK 3; defined here so the seam is
-# self-documenting).
-DEFAULT_MAX_INCLUDE_DEPTH = 2
+# Section 8 delegation limits. DEFAULT_MAX_INCLUDE_DEPTH is the number of
+# include= hops a verifier may follow. Per the §8 parenthetical "(the original
+# record plus one level of include)" this is ONE hop: origin -> one target with
+# a url (FINDINGS P2, conservative reading). DEFAULT_MAX_INCLUDE_LOOKUPS is the
+# §8 hard cap of 10 total DNS queries for the whole attempt.
+DEFAULT_MAX_INCLUDE_DEPTH = 1
 DEFAULT_MAX_INCLUDE_LOOKUPS = 10
 
 
@@ -173,6 +175,138 @@ def _is_expired(rec: ParsedRecord, now: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Section 8 include= delegation
+# ---------------------------------------------------------------------------
+
+def _follow_includes(
+    record: ParsedRecord,
+    resolver: Resolver,
+    policy: Policy,
+    budget: dict,
+) -> tuple[Optional[ParsedRecord], Optional[VerificationResult]]:
+    """Follow the include= chain from `record` to the final resolved record (§8).
+
+    `record` is the agent record that carries an include= tag; its OWN
+    revocation was already checked by verify_apertoid step 7 before this is
+    called. `budget` is a mutable dict threaded through the whole chain:
+
+        lookups      running count of DNS TXT queries for the WHOLE attempt
+                     (policy + agent + every include target); Section 8 caps it
+        seen         set of DNS names already resolved (incl. the original agent
+                     name), for circular-reference detection
+        max_lookups  total DNS query cap (Section 8: MUST NOT exceed 10)
+        max_depth    maximum include hops that may be followed (Section 8)
+        chain        ordered list of names resolved so far, for error detail
+
+    Returns (resolved_record, None) on success, or (None, failure_result) with a
+    VerificationResult to propagate: temperror (depth/lookup/cycle/DNS-timeout),
+    permerror (empty target, malformed target, dead-end with no url/include), or
+    revoked.
+
+    SECURITY LIMITS (Section 8, DoS prevention): delegation depth <= max_depth,
+    total DNS queries <= max_lookups, circular references detected and rejected.
+
+    DECISION F-2: status=revoked is re-checked on EVERY resolved target, not
+    just the original record (the numbered algorithm of Section 11.2 does not
+    specify this; see FINDINGS.md). A revoked delegation target stops the chain.
+    """
+    depth = 0
+    current = record
+
+    while current.get("include") is not None:
+        target = current.get("include")
+        chain_str = " -> ".join(budget["chain"] + [target])
+
+        # Section 8: maximum delegation depth (counted as include hops).
+        depth += 1
+        if depth > budget["max_depth"]:
+            return None, VerificationResult(
+                Outcome.TEMPERROR, "11.2#8", policy,
+                detail=f"include delegation depth exceeded "
+                       f"(max {budget['max_depth']} include "
+                       f"hop{'' if budget['max_depth'] == 1 else 's'}); "
+                       f"chain: {chain_str}",
+                lookups=budget["lookups"],
+            )
+
+        # Section 8: circular reference detection.
+        if target in budget["seen"]:
+            return None, VerificationResult(
+                Outcome.TEMPERROR, "11.2#8", policy,
+                detail=f"circular include reference: {target} already visited; "
+                       f"chain: {chain_str}",
+                lookups=budget["lookups"],
+            )
+
+        # Section 8: total lookup budget (count every DNS query in the attempt).
+        if budget["lookups"] >= budget["max_lookups"]:
+            return None, VerificationResult(
+                Outcome.TEMPERROR, "11.2#8", policy,
+                detail=f"include lookup budget exceeded "
+                       f"(max {budget['max_lookups']} DNS queries); "
+                       f"chain: {chain_str}",
+                lookups=budget["lookups"],
+            )
+
+        # Resolve the delegated name.
+        txt = resolver.txt(target)
+        budget["lookups"] += 1
+        budget["seen"].add(target)
+        budget["chain"].append(target)
+
+        if txt.status is LookupStatus.TEMPFAIL:
+            return None, VerificationResult(
+                Outcome.TEMPERROR, "11.2#8", policy,
+                detail=f"DNS temporary failure at include target {target}",
+                lookups=budget["lookups"],
+            )
+        if txt.status is LookupStatus.EMPTY:
+            return None, VerificationResult(
+                Outcome.PERMERROR, "11.2#8", policy,
+                detail=f"no record at include target {target}",
+                lookups=budget["lookups"],
+            )
+
+        resolved = _select_record(txt, RecordType.AGENT)
+        if resolved is None:
+            return None, VerificationResult(
+                Outcome.PERMERROR, "11.2#8", policy,
+                detail=f"no ApertoID record at include target {target}",
+                lookups=budget["lookups"],
+            )
+        if not resolved.is_valid:
+            return None, VerificationResult(
+                Outcome.PERMERROR, "11.2#8", policy,
+                detail=f"malformed record at include target {target}: "
+                       f"{'; '.join(str(e) for e in resolved.errors)}",
+                lookups=budget["lookups"],
+            )
+
+        # F-2: re-check revocation on THIS resolved target (not only the origin).
+        if resolved.get("status") == "revoked":
+            return None, VerificationResult(
+                Outcome.REVOKED, "11.2#7-via-include", policy,
+                detail=f"include target {target} is revoked",
+                lookups=budget["lookups"],
+            )
+
+        current = resolved
+
+    # The chain terminated at a record with no include=. Section 8: the final
+    # resolved record MUST carry a url. A non-revoked record with neither url
+    # nor include is a dead-end delegation (the parser flags most such records
+    # as malformed above; this is the defensive backstop for the degenerate
+    # version-only record the classifier cannot type).
+    if current.get("url") is None:
+        return None, VerificationResult(
+            Outcome.PERMERROR, "11.2#8", policy,
+            detail="resolved record has neither url nor include",
+            lookups=budget["lookups"],
+        )
+    return current, None
+
+
+# ---------------------------------------------------------------------------
 # Section 11.2 verification algorithm -- core flow
 # ---------------------------------------------------------------------------
 
@@ -184,16 +318,23 @@ def verify_apertoid(
     *,
     current_time: int,
     agent_pubkey: Optional[str] = None,
+    max_include_depth: int = DEFAULT_MAX_INCLUDE_DEPTH,
+    max_include_lookups: int = DEFAULT_MAX_INCLUDE_LOOKUPS,
 ) -> VerificationResult:
     """Verify an agent's authorization via DNS per [APERTOID-DNS] Section 11.2.
 
-    Follows the numbered algorithm in order EXACTLY. Steps 8 (include) and 10
-    (url matching) are BLOCK 3 / BLOCK 4 seams (see module docstring).
+    Follows the numbered algorithm in order EXACTLY. Step 10 (url matching) is
+    the remaining BLOCK 4 seam; step 8 (include delegation) is implemented via
+    _follow_includes.
 
     agent_pubkey is OPTIONAL: when provided it is matched against the record's
     pk= (step 11); when omitted the match is skipped but the resolved pk is
     still returned in the result (decision F-4), so the sig bridge can consume
     it.
+
+    max_include_depth / max_include_lookups expose the Section 8 DoS limits
+    (default 2 hops / 10 total DNS queries) as keyword-only parameters so each
+    limit can be exercised independently; production callers use the defaults.
     """
     lookups = 0
 
@@ -273,23 +414,24 @@ def verify_apertoid(
             detail="agent is revoked", lookups=lookups,
         )
 
-    # --- Step 8: include= delegation ------------------------------------
-    # TODO(BLOCK 3): resolve include= via _follow_includes(agent_rec, ...):
-    #   * max depth DEFAULT_MAX_INCLUDE_DEPTH (2), max DEFAULT_MAX_INCLUDE_LOOKUPS
-    #     (10) total, circular reference detection -> temperror (11.2#8);
-    #   * re-check status=revoked on EACH resolved target (decision F-2);
-    #   * continue verification (steps 9-12) with the RESOLVED record.
-    # url and include are mutually exclusive (parser enforces this), so a record
-    # with include= has no url= to operate on directly. Until BLOCK 3 lands we
-    # surface the seam honestly rather than silently passing an unresolved
-    # delegation.
+    # --- Step 8: include= delegation (Section 8) ------------------------
+    # Follow include= to the final resolved record, enforcing the Section 8 DoS
+    # limits (depth, total lookups, cycle detection) and re-checking revocation
+    # on every hop (decision F-2). url and include are mutually exclusive
+    # (parser enforces), so a record with include= has no url= of its own.
+    resolved = agent_rec
     if agent_rec.get("include") is not None:
-        return VerificationResult(
-            Outcome.TEMPERROR, "11.2#8", policy,
-            detail="include= delegation not yet implemented (BLOCK 3)",
-            lookups=lookups,
-        )
-    resolved = agent_rec  # BLOCK 3 will replace this with the resolved record
+        budget = {
+            "lookups": lookups,          # policy + agent queries already spent
+            "seen": {agent_name},        # origin name, for cycle detection
+            "chain": [agent_name],
+            "max_depth": max_include_depth,
+            "max_lookups": max_include_lookups,
+        }
+        resolved, failure = _follow_includes(agent_rec, resolver, policy, budget)
+        lookups = budget["lookups"]
+        if failure is not None:
+            return failure
 
     # --- Step 9: exp expiry (Section 7.3 / 9) ---------------------------
     if _is_expired(resolved, current_time):

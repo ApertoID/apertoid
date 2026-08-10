@@ -306,6 +306,67 @@ version tag with value APERTOID1", not a byte-prefix match.
 
 ---
 
+# Phase 2 findings (verification procedure, for -02)
+
+> These surfaced while implementing the end-to-end verification procedure
+> (`verify_apertoid`, §11.2 + §8), not the record parser. They concern the
+> ALGORITHM's ordering and limits rather than the record grammar. The draft
+> XML/TXT is NOT modified for these; they are flagged for a future -02.
+
+## P1 — revocation of an include= delegation target is unspecified (SECURITY, MEDIUM)
+
+**§11.2 / §8 / §10.1:** the numbered algorithm checks `status=revoked` at
+**step 7**, on the **original** agent declaration record, BEFORE following
+`include=` at **step 8**. §10.1 says a verifier "MUST check for
+`status=revoked` BEFORE performing any other verification steps" and MUST treat
+a revoked agent as unauthorized. But the algorithm never re-runs step 7 on a
+record reached **through** an `include=` delegation. So if
+`a._apertoid.example.com` delegates via `include=` to
+`b._apertoid.thirdparty.com`, and the **third party** revokes `b` (publishes
+`v=APERTOID1; status=revoked` at that name), a literal reading of §11.2
+would: resolve the include (step 8), then proceed to steps 9-12 on the
+delegated record — which, being a revocation record, has no `url`/`pk`/`exp`,
+so the outcome is an incidental `permerror`/`url_mismatch` rather than the
+intended `revoked`. The delegated party's revocation is not honored as a
+revocation.
+
+**Implementation behavior (decision F-2, the safe choice):**
+`_follow_includes` re-checks `status=revoked` on **every** resolved record,
+including each `include=` target. A revoked target immediately stops the chain
+and returns `revoked` (step id `11.2#7-via-include`). This means a third party
+can revoke its own delegated agent and have that revocation actually enforced —
+the security-preserving interpretation.
+
+**Proposed fix for -02:** state explicitly that step 7's revocation check
+applies to EACH resolved record, including every `include=` target, not only
+the original. Equivalently: after following an `include=` (step 8), re-enter
+the revocation check before steps 9-12.
+
+## P2 — "maximum delegation depth is 2" parenthetical vs. hop count (LOW, ambiguous)
+
+**§8:** "The maximum delegation depth is 2 (i.e., the original record plus one
+level of `include`)." The number "2" read as a hop count would allow **two**
+`include` hops (A→B→C). But the parenthetical "the original record plus one
+level of `include`" describes a chain of **two records** — the origin and one
+delegated target — i.e. exactly **one** `include` hop (A→B). The two readings
+disagree by one level.
+
+**Implementation behavior:** resolved by taking the **parenthetical** as
+authoritative — the safer, more conservative reading. `DEFAULT_MAX_INCLUDE_DEPTH
+= 1`, meaning a verifier follows **at most one** `include=` hop: A (with
+`include`→B), B has `url` → PASS; a second hop A→B→C → `temperror` (11.2#8,
+"depth exceeded"). The hard total-lookup cap of 10 (§8, unambiguous) remains the
+outer DoS bound, and cycle detection is unchanged. The depth limit is exposed as
+the `max_include_depth` keyword argument so a chain of two hops can still be
+exercised in tests, but the default enforces the one-hop rule.
+
+**Proposed fix for -02:** state the depth rule unambiguously and drop the
+"2" vs "one include" contradiction — e.g. "A verifier MUST follow at most one
+`include=` delegation (the original record plus one delegated target)." The
+total-lookup cap (10) is unaffected.
+
+---
+
 ## Summary table
 
 | ID  | Section(s)         | Severity | One-liner |
@@ -322,3 +383,5 @@ version tag with value APERTOID1", not a byte-prefix match.
 | F10 | 7.3, 12.1         | LOW      | pk-without-k direction unstated; exp optionality on url-only records unclear |
 | F11 | (absent)          | LOW      | Duplicate-tag handling undefined |
 | F12 | 6.1               | LOW      | "begins with v=APERTOID1" conflicts with case-insensitive tag + whitespace |
+| P1  | 11.2, 8, 10.1     | MEDIUM   | Revocation of an `include=` target unspecified; impl re-checks per hop (F-2) |
+| P2  | 8                 | LOW      | "max depth 2" vs "(original + one include)"; impl follows 1 include hop (conservative) |
