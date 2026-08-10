@@ -5,15 +5,10 @@ and the HTTP signature layer (sig.py) into the verification procedure of
 draft-ferro-dnsop-apertoid-01 Section 11.2 and the sig<->DNS bridge of
 draft-ferro-httpbis-apertoid-sig-01 Section 4.
 
-SCOPE so far: verify_apertoid() core flow (Section 11.2 steps 1-7, 9, 11, 12),
-Section 6.1 multi-record selection, and (BLOCK 3) Section 8 include= delegation
-via _follow_includes(). One step remains an explicit seam:
-
-  * Step 10 (url matching)         -> BLOCK 4: _url_matches()
-
-The seam is marked with a TODO so the later block slots in without reshaping the
-surrounding flow. verify_request() (the sig bridge, F-5) is BLOCK 5 and is not
-built here.
+SCOPE so far: verify_apertoid() is complete -- Section 11.2 steps 1-12,
+Section 6.1 multi-record selection, Section 8 include= delegation
+(_follow_includes), and Section 11.4 url matching (_url_matches). verify_request()
+(the sig bridge, F-5) is BLOCK 5 and is not built here.
 
 RESULT TYPE (decision F-6): every outcome carries the failing step id and the
 domain's resolved policy p=, so a caller learns both "unauthorized" and "the
@@ -26,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
+from urllib.parse import urlsplit
 
 from .parser import VERSION, ParsedRecord, RecordType, parse_record
 from .resolver import LookupStatus, Resolver, TxtLookup
@@ -172,6 +168,73 @@ def _is_expired(rec: ParsedRecord, now: int) -> bool:
     if exp is None:
         return False
     return now > int(exp)
+
+
+# ---------------------------------------------------------------------------
+# Section 11.4 URL matching
+# ---------------------------------------------------------------------------
+
+def _url_matches(agent_url: str, declared_url: str) -> bool:
+    """Compare the agent's URL against the declared url= per Section 11.4.
+
+    The section specifies EXACTLY these rules (implemented verbatim, nothing
+    invented):
+
+      * scheme MUST be "https"; HTTP MUST NOT be accepted. Either side using a
+        non-https scheme is an automatic no-match (security: a declared or
+        presented http URL never matches, even if the rest is identical).
+      * host comparison is case-INsensitive (per RFC 3986).
+      * path comparison is case-SENSITIVE.
+      * trailing slashes are normalized (see FINDINGS P3 for the exact reading:
+        all trailing "/" are stripped from each path on both sides, so "/x",
+        "/x/" and "/x//" compare equal, and root "/" compares equal to "").
+      * query strings and fragments are IGNORED.
+      * port numbers, if present, MUST match; the default HTTPS port 443 is
+        assumed when absent (so "https://h/p" == "https://h:443/p").
+
+    Anything that fails to parse as a URL is treated as a no-match rather than
+    raising: verification returns url_mismatch, never an exception.
+    """
+    try:
+        a = urlsplit(agent_url)
+        d = urlsplit(declared_url)
+    except ValueError:
+        return False
+
+    # scheme: both MUST be exactly https (case-insensitive per RFC 3986 scheme
+    # rules; "HTTPS" is still https, but "http" is never accepted).
+    if a.scheme.lower() != "https" or d.scheme.lower() != "https":
+        return False
+
+    # host: case-insensitive. urlsplit already lowercases nothing, so fold here.
+    if (a.hostname or "") .lower() != (d.hostname or "").lower():
+        return False
+
+    # port: 443 assumed when absent. urlsplit.port is None when absent or, for a
+    # malformed port, raises ValueError on access -- guard it.
+    try:
+        a_port = a.port if a.port is not None else 443
+        d_port = d.port if d.port is not None else 443
+    except ValueError:
+        return False
+    if a_port != d_port:
+        return False
+
+    # path: case-sensitive, with trailing slashes normalized on both sides.
+    if _normalize_path(a.path) != _normalize_path(d.path):
+        return False
+
+    # query and fragment are ignored entirely (not compared).
+    return True
+
+
+def _normalize_path(path: str) -> str:
+    """Strip trailing slashes for the Section 11.4 comparison (see FINDINGS P3).
+
+    "/x/" -> "/x", "/x" -> "/x", "/" -> "", "" -> "". Applied to both sides so
+    the comparison is symmetric.
+    """
+    return path.rstrip("/")
 
 
 # ---------------------------------------------------------------------------
@@ -323,9 +386,9 @@ def verify_apertoid(
 ) -> VerificationResult:
     """Verify an agent's authorization via DNS per [APERTOID-DNS] Section 11.2.
 
-    Follows the numbered algorithm in order EXACTLY. Step 10 (url matching) is
-    the remaining BLOCK 4 seam; step 8 (include delegation) is implemented via
-    _follow_includes.
+    Follows the numbered algorithm in order EXACTLY (steps 1-12), including
+    step 8 include delegation (_follow_includes) and step 10 url matching
+    (_url_matches).
 
     agent_pubkey is OPTIONAL: when provided it is matched against the record's
     pk= (step 11); when omitted the match is skipped but the resolved pk is
@@ -333,8 +396,9 @@ def verify_apertoid(
     it.
 
     max_include_depth / max_include_lookups expose the Section 8 DoS limits
-    (default 2 hops / 10 total DNS queries) as keyword-only parameters so each
-    limit can be exercised independently; production callers use the defaults.
+    (default 1 include hop / 10 total DNS queries) as keyword-only parameters so
+    each limit can be exercised independently; production callers use the
+    defaults.
     """
     lookups = 0
 
@@ -443,11 +507,19 @@ def verify_apertoid(
         )
 
     # --- Step 10: url matching (Section 11.4) ---------------------------
-    # TODO(BLOCK 4): _url_matches(agent_url, resolved.get("url")) per Section
-    # 11.4 (https-only, case-insensitive host, case-sensitive path, trailing
-    # slash normalised, query/fragment ignored, port must match with 443
-    # default). On no match -> url_mismatch (11.2#10), policy applied. Skipped
-    # in BLOCK 2.
+    # Compare the caller-supplied canonical agent_url against the resolved
+    # record's url= per Section 11.4. url-only records go through this too. A
+    # record reached via include= always carries a url (enforced by
+    # _follow_includes), so resolved.get("url") is present here.
+    declared_url = resolved.get("url")
+    if not _url_matches(agent_url, declared_url):
+        return VerificationResult(
+            Outcome.URL_MISMATCH, "11.2#10", policy,
+            pk=resolved.get("pk"),
+            detail=f"agent url {agent_url!r} does not match declared "
+                   f"url {declared_url!r}",
+            lookups=lookups,
+        )
 
     # --- Step 11: key check (Section 11.2 step 11) ----------------------
     # F-4: ALWAYS expose the resolved pk, whether or not a key is matched. The

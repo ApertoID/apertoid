@@ -44,9 +44,13 @@ def _include(target):
     return f"v=APERTOID1; include={target}"
 
 
-def _verify(resolver, *, agent_pubkey=None, **kw):
+def _verify(resolver, *, agent_pubkey=None, agent_url=AGENT_URL, **kw):
+    # After BLOCK 4, step 10 matches agent_url against the RESOLVED record's
+    # url=. For a delegation, that is the final target's url (FINAL_URL), so the
+    # PASS cases pass agent_url=FINAL_URL; error cases fail before step 10 and
+    # the default AGENT_URL is irrelevant.
     return verify_apertoid(
-        DOMAIN, SELECTOR, AGENT_URL, resolver,
+        DOMAIN, SELECTOR, agent_url, resolver,
         current_time=NOW, agent_pubkey=agent_pubkey, **kw,
     )
 
@@ -63,7 +67,7 @@ def test_single_include_passes_with_target_pk_and_url():
         **_base(_include(B_NAME)),
         B_NAME: FINAL_AGENT,
     })
-    res = _verify(r, agent_pubkey=PK)
+    res = _verify(r, agent_pubkey=PK, agent_url=FINAL_URL)
     assert res.outcome is Outcome.PASS
     assert res.step == "pass"
     assert res.policy is Policy.REJECT
@@ -151,7 +155,7 @@ def test_higher_depth_allowed_when_limit_raised():
         B_NAME: _include(C_NAME),
         C_NAME: FINAL_AGENT,
     })
-    res = _verify(r, max_include_depth=2)
+    res = _verify(r, max_include_depth=2, agent_url=FINAL_URL)
     assert res.outcome is Outcome.PASS
     assert res.lookups == 4  # policy + agent + B + C
 

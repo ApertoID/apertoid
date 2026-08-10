@@ -365,6 +365,35 @@ exercised in tests, but the default enforces the one-hop rule.
 `include=` delegation (the original record plus one delegated target)." The
 total-lookup cap (10) is unaffected.
 
+## P3 — "trailing slashes are normalized" is under-specified (LOW, ambiguous)
+
+**§11.4:** "trailing slashes are normalized". The rule does not say:
+
+- **singular vs plural:** does it strip one trailing slash or all of them
+  (`/x//` vs `/x/` vs `/x`)?
+- **which side:** the declared url=, the presented url, or both?
+- **root path:** does normalization make root `/` equal to an empty path ``,
+  so `https://h` and `https://h/` match?
+
+Every other §11.4 clause (https-only, host case-insensitive, path
+case-sensitive, query/fragment ignored, port with 443 default) is precise; only
+this one leaves the exact operation open.
+
+**Implementation behavior:** `_normalize_path` strips **all** trailing `/` from
+**both** paths before the case-sensitive comparison (`str.rstrip("/")`), so
+`/x`, `/x/` and `/x//` all compare equal, and root `/` normalizes to `` (so
+`https://h` matches `https://h/`). This is the most permissive-yet-safe reading:
+it never causes a security-relevant false match (the significant path segments
+must still match exactly, case-sensitively), it is symmetric, and it is
+idempotent. It does NOT collapse internal slashes (`/a//b` is left intact) or
+touch anything but the trailing run.
+
+**Proposed fix for -02:** state the operation precisely, e.g. "before
+comparison, remove any trailing '/' characters from the path component of both
+URLs (so an empty path and '/' are equivalent); interior slashes are not
+altered." Confirm whether root-vs-empty equivalence is intended (this
+implementation assumes yes).
+
 ---
 
 ## Summary table
@@ -385,3 +414,4 @@ total-lookup cap (10) is unaffected.
 | F12 | 6.1               | LOW      | "begins with v=APERTOID1" conflicts with case-insensitive tag + whitespace |
 | P1  | 11.2, 8, 10.1     | MEDIUM   | Revocation of an `include=` target unspecified; impl re-checks per hop (F-2) |
 | P2  | 8                 | LOW      | "max depth 2" vs "(original + one include)"; impl follows 1 include hop (conservative) |
+| P3  | 11.4              | LOW      | "trailing slashes are normalized" under-specified (how many / which side / root≡empty) |
