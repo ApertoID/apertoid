@@ -224,11 +224,14 @@ def verify(
     if abs(current_time - t) > window:
         return VerifyResult("timestamp_invalid", f"|{current_time}-{t}| > {window}")
 
+    # Section 4 step 4: check the nonce cache READ-ONLY here. The nonce is NOT
+    # inserted yet -- insertion happens only after the signature verifies (step
+    # 9a below). This prevents an attacker from burning a victim's nonce (or
+    # flooding the cache) with a bogus-signature request: an unauthenticated
+    # request MUST NOT mutate verifier state.
     n = ph.tags["n"]
-    if seen_nonces is not None:
-        if n in seen_nonces:
-            return VerifyResult("nonce_reused", n)
-        seen_nonces.add(n)
+    if seen_nonces is not None and n in seen_nonces:
+        return VerifyResult("nonce_reused", n)
 
     signing_input = construct_signing_input(
         ph.tags["d"], ph.tags["s"], ph.tags["t"], n, method, target, body
@@ -237,5 +240,9 @@ def verify(
         public_key.verify(b64_unpadded_decode(ph.tags["sig"]), signing_input)
     except InvalidSignature:
         return VerifyResult("sig_invalid", "Ed25519 verify failed")
+
+    # Section 4 step 9a: the signature is valid, so NOW record the nonce.
+    if seen_nonces is not None:
+        seen_nonces.add(n)
 
     return VerifyResult("pass")
