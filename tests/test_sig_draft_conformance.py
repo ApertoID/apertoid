@@ -29,7 +29,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (  # noqa: E402
 )
 
 SPEC = Path(__file__).resolve().parents[1] / "spec"
-DRAFT_TXT = SPEC / "draft-ferro-httpbis-apertoid-sig-01.txt"
+DRAFT_TXT = SPEC / "draft-ferro-httpbis-apertoid-sig-02.txt"
 
 # The example request (§3.3 / Appendix A).
 EX_D = "example.com"

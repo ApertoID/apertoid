@@ -76,27 +76,30 @@ def test_single_include_passes_with_target_pk_and_url():
     assert res.lookups == 3
 
 
-# --- security limits --------------------------------------------------------
-
-def test_two_level_include_exceeds_depth():
-    # A -> B -> C : a SECOND include hop. Per §8's "(original + one include)"
-    # only ONE include hop is allowed (FINDINGS P2), so this now FAILS.
+def test_two_level_include_passes():
+    # A -> B -> C : two include hops. The -02 delegation limit is TWO hops
+    # (original + up to two delegated targets), preserving what -01's "depth 2"
+    # permitted (FINDINGS P2), so this PASSES.
     r = StaticResolver({
         **_base(_include(B_NAME)),
         B_NAME: _include(C_NAME),
         C_NAME: FINAL_AGENT,
     })
-    res = _verify(r)
-    assert res.outcome is Outcome.TEMPERROR
-    assert res.step == "11.2#8"
+    res = _verify(r, agent_pubkey=PK, agent_url=FINAL_URL)
+    assert res.outcome is Outcome.PASS
+    assert res.step == "pass"
     assert res.policy is Policy.REJECT
-    assert "depth exceeded" in res.detail
-    # policy + agent + B (the hop to C is refused before any DNS query for C)
-    assert res.lookups == 3
+    assert res.pk == PK
+    # policy + agent + B + C = 4 DNS queries
+    assert res.lookups == 4
 
 
-def test_depth_exceeded_is_temperror():
-    # A -> B -> C -> D : still fails; depth is checked at the second hop.
+# --- security limits --------------------------------------------------------
+
+def test_third_include_hop_exceeds_depth():
+    # A -> B -> C -> D : a THIRD include hop. Two hops are allowed; the third is
+    # the real boundary -> temperror (depth). The hop to D is refused before any
+    # DNS query for D.
     r = StaticResolver({
         **_base(_include(B_NAME)),
         B_NAME: _include(C_NAME),
@@ -108,17 +111,18 @@ def test_depth_exceeded_is_temperror():
     assert res.step == "11.2#8"
     assert res.policy is Policy.REJECT
     assert "depth exceeded" in res.detail
+    # policy + agent + B + C (the hop to D is refused before querying D)
+    assert res.lookups == 4
 
 
 def test_cycle_is_temperror():
-    # A -> B -> A : circular reference. Depth raised to 2 so the second hop is
-    # attempted and the CYCLE check (not the depth limit) is what rejects it --
-    # isolating cycle detection from the one-hop depth default.
+    # A -> B -> A : circular reference caught within the two-hop budget (the
+    # cycle check, not the depth limit, is what rejects it).
     r = StaticResolver({
         **_base(_include(B_NAME)),
         B_NAME: _include(AGENT_NAME),
     })
-    res = _verify(r, max_include_depth=2)
+    res = _verify(r)
     assert res.outcome is Outcome.TEMPERROR
     assert res.step == "11.2#8"
     assert "circular" in res.detail
@@ -146,18 +150,19 @@ def test_lookup_budget_exceeded_is_temperror():
     assert "lookup budget exceeded" in res.detail
 
 
-def test_higher_depth_allowed_when_limit_raised():
-    # Raising the depth limit to 2 lets the two-hop chain A -> B -> C resolve;
-    # the limit is the only thing stopping it (the mechanics are otherwise
-    # sound). Confirms the depth knob is what enforces the conservative default.
+def test_depth_limit_is_the_only_thing_stopping_a_third_hop():
+    # Raising the depth limit to 3 lets the three-hop chain A -> B -> C -> D
+    # resolve, confirming the mechanics are otherwise sound and it is the depth
+    # knob (not some other failure) that rejects a third hop at the default.
     r = StaticResolver({
         **_base(_include(B_NAME)),
         B_NAME: _include(C_NAME),
-        C_NAME: FINAL_AGENT,
+        C_NAME: _include(D_NAME),
+        D_NAME: FINAL_AGENT,
     })
-    res = _verify(r, max_include_depth=2, agent_url=FINAL_URL)
+    res = _verify(r, max_include_depth=3, agent_url=FINAL_URL)
     assert res.outcome is Outcome.PASS
-    assert res.lookups == 4  # policy + agent + B + C
+    assert res.lookups == 5  # policy + agent + B + C + D
 
 
 # --- F-2: revocation of a delegation target ---------------------------------
@@ -176,15 +181,15 @@ def test_include_target_revoked_stops_chain():
 
 
 def test_deep_include_target_revoked_stops_chain():
-    # A -> B -> C(revoked): with the depth limit raised to 2 so the second hop
-    # is actually followed, F-2's per-hop revocation check (not the depth limit)
-    # is what fires. Proves revocation is re-checked at every resolved target.
+    # A -> B -> C(revoked): the second hop is within the default two-hop budget,
+    # so F-2's per-hop revocation check (not the depth limit) is what fires.
+    # Proves revocation is re-checked at every resolved target.
     r = StaticResolver({
         **_base(_include(B_NAME)),
         B_NAME: _include(C_NAME),
         C_NAME: "v=APERTOID1; status=revoked",
     })
-    res = _verify(r, max_include_depth=2)
+    res = _verify(r)
     assert res.outcome is Outcome.REVOKED
     assert res.step == "11.2#7-via-include"
 

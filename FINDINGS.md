@@ -345,25 +345,31 @@ the revocation check before steps 9-12.
 ## P2 — "maximum delegation depth is 2" parenthetical vs. hop count (LOW, ambiguous)
 
 **§8:** "The maximum delegation depth is 2 (i.e., the original record plus one
-level of `include`)." The number "2" read as a hop count would allow **two**
-`include` hops (A→B→C). But the parenthetical "the original record plus one
-level of `include`" describes a chain of **two records** — the origin and one
-delegated target — i.e. exactly **one** `include` hop (A→B). The two readings
-disagree by one level.
+level of `include`)." The number "2" read as a hop count allows **two** `include`
+hops (A→B→C). But the parenthetical "the original record plus one level of
+`include`" reads as a chain of **two records** — the origin and one delegated
+target — i.e. exactly **one** `include` hop (A→B). The two phrasings disagree by
+one level, so the intended limit is genuinely ambiguous in -01.
 
-**Implementation behavior:** resolved by taking the **parenthetical** as
-authoritative — the safer, more conservative reading. `DEFAULT_MAX_INCLUDE_DEPTH
-= 1`, meaning a verifier follows **at most one** `include=` hop: A (with
-`include`→B), B has `url` → PASS; a second hop A→B→C → `temperror` (11.2#8,
-"depth exceeded"). The hard total-lookup cap of 10 (§8, unambiguous) remains the
-outer DoS bound, and cycle detection is unchanged. The depth limit is exposed as
-the `max_include_depth` keyword argument so a chain of two hops can still be
-exercised in tests, but the default enforces the one-hop rule.
+**Resolution (-02): TWO include hops, keeping what -01 already permitted.**
+`DEFAULT_MAX_INCLUDE_DEPTH = 2`: a verifier follows the original record plus up to
+**two** delegated targets. So A→B (B has `url`) → PASS; A→B→C → PASS; A→B→C→D (a
+**third** hop) → `temperror` (11.2#8, "depth exceeded"). The reasoning is
+deliberately NOT the earlier "narrow to one hop" reading: -01 already published
+"depth 2", so cutting to one hop in -02 would REMOVE a capability already given
+(a breaking restriction on existing deployments). Instead the depth stays at two
+and is made **safe** by the other §8 limits, all unchanged: the per-hop
+revocation re-check (P1 / F-2), circular-reference detection, and the hard cap of
+**10** total DNS queries per attempt. "Wider but safe": secure the depth that -01
+gave rather than reduce it. The `max_include_depth` keyword argument still lets a
+chain of a different length be exercised in tests.
 
-**Proposed fix for -02:** state the depth rule unambiguously and drop the
-"2" vs "one include" contradiction — e.g. "A verifier MUST follow at most one
-`include=` delegation (the original record plus one delegated target)." The
-total-lookup cap (10) is unaffected.
+**Proposed fix for -02:** state the depth rule unambiguously as two hops and drop
+the "2" vs "one include" contradiction — e.g. "A verifier MUST follow at most two
+`include=` delegations (the original record plus up to two delegated targets); a
+chain requiring a third `include` hop MUST result in `temperror`." The
+total-lookup cap (10), per-hop revocation, and cycle detection are what bound the
+risk at this depth.
 
 ## P3 — "trailing slashes are normalized" is under-specified (LOW, ambiguous)
 
@@ -460,6 +466,6 @@ in §11.3 pass could clarify that a `pass` covers URL-only authorization.
 | F11 | (absent)          | LOW      | Duplicate-tag handling undefined |
 | F12 | 6.1               | LOW      | "begins with v=APERTOID1" conflicts with case-insensitive tag + whitespace |
 | P1  | 11.2, 8, 10.1     | MEDIUM   | Revocation of an `include=` target unspecified; impl re-checks per hop (F-2) |
-| P2  | 8                 | LOW      | "max depth 2" vs "(original + one include)"; impl follows 1 include hop (conservative) |
+| P2  | 8                 | LOW      | "max depth 2" vs "(original + one include)" ambiguous; -02 resolves as 2 include hops (keep -01 capability, safe via per-hop revocation + cycle + ≤10 budget) |
 | P3  | 11.4              | LOW      | "trailing slashes are normalized" under-specified (how many / which side / root≡empty) |
 | P4  | -sig §4; 7.3, 12.1 | MEDIUM  | Signed request to a keyless (url-only) agent unspecified by -sig §4; impl passes on URL auth, signature_verified=False |

@@ -37,11 +37,14 @@ from .parser import VERSION, ParsedRecord, RecordType, parse_record
 from .resolver import LookupStatus, Resolver, TxtLookup
 
 # Section 8 delegation limits. DEFAULT_MAX_INCLUDE_DEPTH is the number of
-# include= hops a verifier may follow. Per the §8 parenthetical "(the original
-# record plus one level of include)" this is ONE hop: origin -> one target with
-# a url (FINDINGS P2, conservative reading). DEFAULT_MAX_INCLUDE_LOOKUPS is the
-# §8 hard cap of 10 total DNS queries for the whole attempt.
-DEFAULT_MAX_INCLUDE_DEPTH = 1
+# include= hops a verifier may follow: TWO (origin record + up to two delegated
+# targets), preserving what -01's "maximum delegation depth is 2" already
+# permitted rather than narrowing it in -02 (FINDINGS P2). So A->B passes,
+# A->B->C passes, A->B->C->D (a third hop) fails with temperror. Safety at this
+# depth comes NOT from reducing it but from the other §8 limits kept unchanged:
+# per-hop revocation re-check (F-2/P1), cycle detection, and the hard cap of
+# DEFAULT_MAX_INCLUDE_LOOKUPS (10) total DNS queries for the whole attempt.
+DEFAULT_MAX_INCLUDE_DEPTH = 2
 DEFAULT_MAX_INCLUDE_LOOKUPS = 10
 
 
@@ -415,7 +418,7 @@ def verify_apertoid(
     it.
 
     max_include_depth / max_include_lookups expose the Section 8 DoS limits
-    (default 1 include hop / 10 total DNS queries) as keyword-only parameters so
+    (default 2 include hops / 10 total DNS queries) as keyword-only parameters so
     each limit can be exercised independently; production callers use the
     defaults.
     """

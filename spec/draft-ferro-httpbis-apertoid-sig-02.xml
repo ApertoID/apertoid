@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rfc xmlns:xi="http://www.w3.org/2001/XInclude"
      ipr="trust200902"
-     docName="draft-ferro-httpbis-apertoid-sig-01"
+     docName="draft-ferro-httpbis-apertoid-sig-02"
      category="std"
      consensus="true"
      submissionType="IETF"
@@ -10,7 +10,7 @@
 
   <front>
     <title abbrev="ApertoID-Signature">ApertoID-Signature: HTTP Request Signing for AI Agent Identity</title>
-    <seriesInfo name="Internet-Draft" value="draft-ferro-httpbis-apertoid-sig-01"/>
+    <seriesInfo name="Internet-Draft" value="draft-ferro-httpbis-apertoid-sig-02"/>
     <author fullname="Andrea Ferro" initials="A." surname="Ferro">
       <organization>ApertoID</organization>
       <address>
@@ -19,7 +19,7 @@
         <uri>https://github.com/ApertoID</uri>
       </address>
     </author>
-    <date year="2026" month="August" day="9"/>
+    <date year="2026" month="August" day="10"/>
     <area>Web and Internet Transport</area>
     <workgroup>HTTPBIS</workgroup>
     <keyword>HTTP</keyword><keyword>AI Agent</keyword><keyword>Signature</keyword><keyword>Ed25519</keyword><keyword>Identity</keyword>
@@ -224,6 +224,14 @@ VERIFY_APERTOID_SIGNATURE(request):
   6. If DNS verification fails:
      Apply policy p= from policy record
      Return DNS verification result
+  6a. If DNS verification passed but the resolved Agent Declaration
+      Record contains no pk= (a url-only agent, legal per
+      [APERTOID-DNS] Section 7.3), there is no published key to
+      verify the signature against. The verifier MUST NOT
+      cryptographically verify the signature, MUST NOT report a
+      cryptographically-verified result, and returns the DNS-layer
+      "pass" (the request is authorized on the URL match alone).
+      Steps 7-9a are skipped.
   7. Reconstruct signing_input from:
      d, s, t, n,
      request.method (uppercase),
@@ -249,7 +257,7 @@ VERIFY_APERTOID_SIGNATURE(request):
       <section anchor="verification-results">
         <name>Result Values</name>
         <dl>
-          <dt>pass</dt><dd>The signature is valid, the agent is authorized, and the signature matches the specific request method, target, and body.</dd>
+          <dt>pass</dt><dd>The agent is authorized by the domain. When the resolved Agent Declaration Record publishes a "pk" and steps 7-9a ran, the signature was also cryptographically verified for this specific request method, target, and body. When the resolved record is url-only (no "pk", see step 6a), the "pass" reflects DNS-layer authorization on the URL match alone and the signature was NOT cryptographically verified; implementations SHOULD expose to the caller whether the signature was cryptographically verified so that a URL-authorized result is not mistaken for a cryptographically-verified one.</dd>
           <dt>malformed</dt><dd>The ApertoID-Signature header is present but cannot be parsed.</dd>
           <dt>timestamp_invalid</dt><dd>The timestamp is outside the validity window.</dd>
           <dt>nonce_reused</dt><dd>The nonce was already seen within the validity window.</dd>
@@ -346,7 +354,7 @@ VERIFY_APERTOID_SIGNATURE(request):
         <reference anchor="RFC9112" target="https://www.rfc-editor.org/info/rfc9112"><front><title>HTTP/1.1</title><author initials="R." surname="Fielding"/><date year="2022" month="June"/></front><seriesInfo name="RFC" value="9112"/></reference>
         <reference anchor="RFC9113" target="https://www.rfc-editor.org/info/rfc9113"><front><title>HTTP/2</title><author initials="M." surname="Thomson"/><date year="2022" month="June"/></front><seriesInfo name="RFC" value="9113"/></reference>
         <reference anchor="RFC9114" target="https://www.rfc-editor.org/info/rfc9114"><front><title>HTTP/3</title><author initials="M." surname="Bishop"/><date year="2022" month="June"/></front><seriesInfo name="RFC" value="9114"/></reference>
-        <reference anchor="APERTOID-DNS"><front><title>ApertoID: DNS-Based Agent Identity Declaration Protocol</title><author initials="A." surname="Ferro"/><date year="2026" month="August"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertoid-01"/></reference>
+        <reference anchor="APERTOID-DNS"><front><title>ApertoID: DNS-Based Agent Identity Declaration Protocol</title><author initials="A." surname="Ferro"/><date year="2026" month="August"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertoid-02"/></reference>
       </references>
       <references>
         <name>Informative References</name>
@@ -485,9 +493,18 @@ def verify_request(request):
       <t>Reference implementations in Python, Go, and JavaScript are maintained at https://github.com/ApertoID.</t>
     </section>
 
+    <section anchor="changes-01">
+      <name>Changes from -01</name>
+      <t>This appendix is non-normative and summarizes the changes made in this revision.</t>
+      <t>NEW NORMATIVE CASE (the -01 algorithm did not cover it):</t>
+      <ul>
+        <li>KEYLESS ("url"-only) AGENT (Section 4, new step 6a): -01 steps 5 and 8 assumed the resolved DNS record always carries a "pk" ("Extract pk= ... and check exp=", "verify ... using pk= from DNS record"). But a "url"-only Agent Declaration Record is legal per <xref target="APERTOID-DNS"/> Section 7.3 (the early deployment stage in which an agent is authorized by URL before a key is published), and -01 gave no verdict for a signed request to such an agent. -02 adds step 6a: when DNS verification passed but the resolved record has no "pk", the verifier MUST NOT cryptographically verify the signature, MUST NOT report a cryptographically-verified result, and returns the DNS-layer "pass" (authorized on the URL match alone). The "pass" result value now states this distinction, and implementations SHOULD expose to the caller whether the signature was cryptographically verified. This aligns with <xref target="APERTOID-DNS"/>, where the key check is optional (skipped when no "pk" is published).</li>
+      </ul>
+    </section>
+
     <section anchor="changes">
       <name>Changes from -00</name>
-      <t>This appendix is non-normative and summarizes the changes made in this revision.</t>
+      <t>This appendix is non-normative and summarizes the changes made in the -01 revision.</t>
       <ul>
         <li>Corrected the signature length and encoding: a "sig" value is a raw 64-byte Ed25519 signature (per RFC 8032, not an ASN.1 DER structure) in standard Base64, unpadded, which is exactly 86 characters (the -00 text mistakenly counted the padding). The signature ABNF production was renamed to reflect that standard, not URL-safe, Base64 is used, and the padding character was removed from the alphabet.</li>
         <li>Pinned the signing input (Section 3.1) to be deterministic and byte-exact: seven components, each terminated by LF, including a trailing LF after body_hash; the signer and verifier MUST produce byte-identical input.</li>

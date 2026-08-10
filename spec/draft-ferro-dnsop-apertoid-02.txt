@@ -4,12 +4,12 @@
 
 DNSOP                                                           A. Ferro
 Internet-Draft                                                  ApertoID
-Intended status: Standards Track                           9 August 2026
-Expires: 10 February 2027
+Intended status: Standards Track                          10 August 2026
+Expires: 11 February 2027
 
 
         ApertoID: DNS-Based Agent Identity Declaration Protocol
-                     draft-ferro-dnsop-apertoid-01
+                     draft-ferro-dnsop-apertoid-02
 
 Abstract
 
@@ -44,7 +44,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 10 February 2027.
+   This Internet-Draft will expire on 11 February 2027.
 
 Copyright Notice
 
@@ -53,7 +53,7 @@ Copyright Notice
 
 
 
-Ferro                   Expires 10 February 2027                [Page 1]
+Ferro                   Expires 11 February 2027                [Page 1]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -87,51 +87,52 @@ Table of Contents
      7.4.  Record Size Considerations  . . . . . . . . . . . . . . .  12
    8.  Delegation  . . . . . . . . . . . . . . . . . . . . . . . . .  12
    9.  Key Publication . . . . . . . . . . . . . . . . . . . . . . .  13
-     9.1.  Ed25519 Key Format  . . . . . . . . . . . . . . . . . . .  13
+     9.1.  Ed25519 Key Format  . . . . . . . . . . . . . . . . . . .  14
      9.2.  Key Lifecycle . . . . . . . . . . . . . . . . . . . . . .  14
    10. Revocation  . . . . . . . . . . . . . . . . . . . . . . . . .  14
      10.1.  Immediate Revocation . . . . . . . . . . . . . . . . . .  14
-     10.2.  Key Rotation . . . . . . . . . . . . . . . . . . . . . .  14
+     10.2.  Key Rotation . . . . . . . . . . . . . . . . . . . . . .  15
    11. Verification Procedure  . . . . . . . . . . . . . . . . . . .  15
-     11.1.  Verification Inputs  . . . . . . . . . . . . . . . . . .  15
-     11.2.  Verification Algorithm . . . . . . . . . . . . . . . . .  15
-     11.3.  Result Values  . . . . . . . . . . . . . . . . . . . . .  16
-     11.4.  URL Matching Rules . . . . . . . . . . . . . . . . . . .  17
-   12. Operational Considerations  . . . . . . . . . . . . . . . . .  17
-     12.1.  Deployment Guidance  . . . . . . . . . . . . . . . . . .  17
-     12.2.  CDN and Reverse Proxy Interaction  . . . . . . . . . . .  17
-     12.3.  TTL Recommendations  . . . . . . . . . . . . . . . . . .  17
-   13. Security Considerations . . . . . . . . . . . . . . . . . . .  17
-     13.1.  Authorization vs. Identity Verification  . . . . . . . .  18
-     13.2.  DNSSEC . . . . . . . . . . . . . . . . . . . . . . . . .  18
-     13.3.  Key Compromise . . . . . . . . . . . . . . . . . . . . .  18
-     13.4.  Delegation Abuse . . . . . . . . . . . . . . . . . . . .  18
+     11.1.  Verification Inputs  . . . . . . . . . . . . . . . . . .  16
+     11.2.  Verification Algorithm . . . . . . . . . . . . . . . . .  16
+     11.3.  Result Values  . . . . . . . . . . . . . . . . . . . . .  17
+     11.4.  URL Matching Rules . . . . . . . . . . . . . . . . . . .  18
+   12. Operational Considerations  . . . . . . . . . . . . . . . . .  18
+     12.1.  Deployment Guidance  . . . . . . . . . . . . . . . . . .  18
+     12.2.  CDN and Reverse Proxy Interaction  . . . . . . . . . . .  18
+     12.3.  TTL Recommendations  . . . . . . . . . . . . . . . . . .  19
+   13. Security Considerations . . . . . . . . . . . . . . . . . . .  19
+     13.1.  Authorization vs. Identity Verification  . . . . . . . .  19
+     13.2.  DNSSEC . . . . . . . . . . . . . . . . . . . . . . . . .  19
+     13.3.  Key Compromise . . . . . . . . . . . . . . . . . . . . .  20
+     13.4.  Delegation Abuse . . . . . . . . . . . . . . . . . . . .  20
 
 
 
-Ferro                   Expires 10 February 2027                [Page 2]
+Ferro                   Expires 11 February 2027                [Page 2]
 
 Internet-Draft                  ApertoID                     August 2026
 
 
-     13.5.  Agent Enumeration  . . . . . . . . . . . . . . . . . . .  19
-     13.6.  DNS Amplification  . . . . . . . . . . . . . . . . . . .  19
-   14. Privacy Considerations  . . . . . . . . . . . . . . . . . . .  19
-   15. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  19
-     15.1.  Underscore-Scoped Domain Name Registration . . . . . . .  19
-     15.2.  ApertoID Agent Type Registry . . . . . . . . . . . . . .  20
-     15.3.  ApertoID Key Type Registry . . . . . . . . . . . . . . .  20
-   16. References  . . . . . . . . . . . . . . . . . . . . . . . . .  20
-     16.1.  Normative References . . . . . . . . . . . . . . . . . .  20
-     16.2.  Informative References . . . . . . . . . . . . . . . . .  21
-   Appendix A.  Complete Examples  . . . . . . . . . . . . . . . . .  22
-     A.1.  Basic Deployment  . . . . . . . . . . . . . . . . . . . .  23
-     A.2.  Third-Party Delegation  . . . . . . . . . . . . . . . . .  23
-     A.3.  Emergency Revocation and Key Rotation . . . . . . . . . .  23
-   Appendix B.  Integration with Application-Layer Protocols . . . .  23
-   Appendix C.  Changes from -00 . . . . . . . . . . . . . . . . . .  24
-   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  25
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  25
+     13.5.  Agent Enumeration  . . . . . . . . . . . . . . . . . . .  20
+     13.6.  DNS Amplification  . . . . . . . . . . . . . . . . . . .  20
+   14. Privacy Considerations  . . . . . . . . . . . . . . . . . . .  20
+   15. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  20
+     15.1.  Underscore-Scoped Domain Name Registration . . . . . . .  21
+     15.2.  ApertoID Agent Type Registry . . . . . . . . . . . . . .  21
+     15.3.  ApertoID Key Type Registry . . . . . . . . . . . . . . .  21
+   16. References  . . . . . . . . . . . . . . . . . . . . . . . . .  21
+     16.1.  Normative References . . . . . . . . . . . . . . . . . .  22
+     16.2.  Informative References . . . . . . . . . . . . . . . . .  23
+   Appendix A.  Complete Examples  . . . . . . . . . . . . . . . . .  24
+     A.1.  Basic Deployment  . . . . . . . . . . . . . . . . . . . .  24
+     A.2.  Third-Party Delegation  . . . . . . . . . . . . . . . . .  24
+     A.3.  Emergency Revocation and Key Rotation . . . . . . . . . .  24
+   Appendix B.  Integration with Application-Layer Protocols . . . .  25
+   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  25
+   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  26
+   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  27
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  27
 
 1.  Introduction
 
@@ -164,8 +165,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-
-Ferro                   Expires 10 February 2027                [Page 3]
+Ferro                   Expires 11 February 2027                [Page 3]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -221,7 +221,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 10 February 2027                [Page 4]
+Ferro                   Expires 11 February 2027                [Page 4]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -277,7 +277,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 10 February 2027                [Page 5]
+Ferro                   Expires 11 February 2027                [Page 5]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -333,7 +333,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 10 February 2027                [Page 6]
+Ferro                   Expires 11 February 2027                [Page 6]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -389,7 +389,7 @@ base64-ed25519-sig = 86*86(BASE64CHAR)   ; 64 bytes, unpadded = 86 chars
 
 
 
-Ferro                   Expires 10 February 2027                [Page 7]
+Ferro                   Expires 11 February 2027                [Page 7]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -445,7 +445,7 @@ alnum              = ALPHA / DIGIT
 
 
 
-Ferro                   Expires 10 February 2027                [Page 8]
+Ferro                   Expires 11 February 2027                [Page 8]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -501,7 +501,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 10 February 2027                [Page 9]
+Ferro                   Expires 11 February 2027                [Page 9]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -557,7 +557,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 10 February 2027               [Page 10]
+Ferro                   Expires 11 February 2027               [Page 10]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -613,7 +613,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 10 February 2027               [Page 11]
+Ferro                   Expires 11 February 2027               [Page 11]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -669,7 +669,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 10 February 2027               [Page 12]
+Ferro                   Expires 11 February 2027               [Page 12]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -687,14 +687,23 @@ Internet-Draft                  ApertoID                     August 2026
    Verifiers MUST follow "include" references to resolve the final Agent
    Declaration Record.  To prevent abuse and excessive DNS lookups:
 
-   *  The maximum delegation depth is 2 (i.e., the original record plus
-      one level of "include").
+   *  A verifier MUST follow at most TWO "include" delegations: the
+      original Agent Declaration Record plus at most two delegated
+      target records.  A chain that would require a third "include" hop
+      MUST be treated as a verification failure (result "temperror").
 
    *  A verifier MUST NOT follow more than 10 "include" references in
       total per verification attempt.
 
    *  Circular "include" references MUST be detected and treated as a
       verification failure.
+
+   *  The revocation check of Section 10.1 MUST be applied to EACH
+      record resolved through an "include" reference, not only the
+      original Agent Declaration Record.  If any record in the
+      delegation chain carries "status=revoked", the verifier MUST treat
+      the agent as unauthorized (result "revoked") and MUST NOT continue
+      following the chain.
 
    The "include" tag is mutually exclusive with the "url" tag: a record
    MUST NOT contain both.  Every Agent Declaration Record that is NOT a
@@ -706,6 +715,20 @@ Internet-Draft                  ApertoID                     August 2026
    "include" as a syntax error when "status=revoked" is present.
 
 9.  Key Publication
+
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 13]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
 9.1.  Ed25519 Key Format
 
@@ -720,15 +743,6 @@ Internet-Draft                  ApertoID                     August 2026
    encoded in unpadded Base64.  Implementations MUST support Ed25519.
    Future specifications MAY define additional key types via the
    ApertoID Key Type Registry (Section 15.3).
-
-
-
-
-
-Ferro                   Expires 10 February 2027               [Page 13]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
 9.2.  Key Lifecycle
 
@@ -760,6 +774,18 @@ Internet-Draft                  ApertoID                     August 2026
    minimize the window during which cached records may allow a revoked
    agent to pass verification.
 
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 14]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
 10.2.  Key Rotation
 
    When rotating keys, the domain owner publishes a new Agent
@@ -777,14 +803,6 @@ Internet-Draft                  ApertoID                     August 2026
    Section 3.3.14 the character-strings are concatenated with no
    separator to form the single logical record, and the split point
    (mid-value, inside the Base64 signature) carries no semantics.
-
-
-
-
-Ferro                   Expires 10 February 2027               [Page 14]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
    The "prev" tag value is constructed as follows: (1) Let "new_pubkey"
    be the raw 32-byte new Ed25519 public key. (2) Sign "new_pubkey"
@@ -808,6 +826,21 @@ Internet-Draft                  ApertoID                     August 2026
    authorization via DNS records.  Cryptographic signature verification
    on individual HTTP requests is defined in the companion document
    [APERTOID-SIG].
+
+
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 15]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
 11.1.  Verification Inputs
 
@@ -837,7 +870,30 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 10 February 2027               [Page 15]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 16]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -855,9 +911,15 @@ Internet-Draft                  ApertoID                     August 2026
      7. If status=revoked:
           Return result="revoked", apply policy p=
      8. If record contains include= tag:
-          Follow delegation (max depth 2, max 10 total lookups)
-          If delegation fails: Return result="temperror"
-          Continue verification with resolved record
+          Follow delegation (see Section 8 for the limits). For EACH
+          record resolved through an include= reference, re-apply
+          step 7: if a resolved record has status=revoked, Return
+          result="revoked", apply policy p= (a revoked delegation
+          target stops the chain and is NOT followed further).
+          If delegation otherwise fails (depth or lookup limit
+          exceeded, circular reference, or a resolved record cannot
+          be obtained): Return result="temperror".
+          Continue verification with the final resolved record.
      9. Check exp= timestamp:
           If exp= is present and current_time > exp:
             Return result="expired", apply policy p=
@@ -884,19 +946,20 @@ Internet-Draft                  ApertoID                     August 2026
 
    revoked  The agent has been explicitly revoked.
 
+
+
+
+Ferro                   Expires 11 February 2027               [Page 17]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    expired  The agent's key has expired.
 
    url_mismatch  The agent's URL does not match the declared URL.
 
    key_mismatch  The agent's presented key does not match the declared
       key.
-
-
-
-Ferro                   Expires 10 February 2027               [Page 16]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
    permerror  A permanent error occurred (e.g., no agent record found,
       malformed syntax).
@@ -908,8 +971,11 @@ Internet-Draft                  ApertoID                     August 2026
 
    When comparing the agent's URL against the declared URL: the scheme
    MUST be "https" (HTTP MUST NOT be accepted); host comparison is case-
-   insensitive per [RFC3986]; path comparison is case-sensitive;
-   trailing slashes are normalized; query strings and fragments are
+   insensitive per [RFC3986]; path comparison is case-sensitive; before
+   the path comparison, any trailing "/" characters are removed from the
+   path component of BOTH URLs (so "/x", "/x/" and "/x//" compare equal,
+   and a root path "/" compares equal to an empty path), while interior
+   "/" characters are left unchanged; query strings and fragments are
    ignored; port numbers, if present, MUST match (default HTTPS port 443
    is assumed when absent).
 
@@ -933,6 +999,17 @@ Internet-Draft                  ApertoID                     August 2026
    Domain owners MUST ensure that the "url=" value matches the URL as
    seen by verifiers, not the internal origin URL.
 
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 18]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
 12.3.  TTL Recommendations
 
    The following TTL values are RECOMMENDED: Policy Records: 3600
@@ -942,17 +1019,6 @@ Internet-Draft                  ApertoID                     August 2026
    the vulnerability window after revocation.
 
 13.  Security Considerations
-
-
-
-
-
-
-
-Ferro                   Expires 10 February 2027               [Page 17]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
 13.1.  Authorization vs. Identity Verification
 
@@ -986,6 +1052,20 @@ Internet-Draft                  ApertoID                     August 2026
    validated results with higher confidence.  DNSSEC is REQUIRED for
    full cryptographic verification of agent identity.
 
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 19]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
 13.3.  Key Compromise
 
    If an agent's Ed25519 private key is compromised, the domain owner
@@ -1002,13 +1082,6 @@ Internet-Draft                  ApertoID                     August 2026
    limits defined in Section 8 (maximum depth of 2, maximum 10 lookups)
    mitigate this risk.  Verifiers MUST enforce these limits and treat
    violations as permanent errors.
-
-
-
-Ferro                   Expires 10 February 2027               [Page 18]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
 13.5.  Agent Enumeration
 
@@ -1041,6 +1114,14 @@ Internet-Draft                  ApertoID                     August 2026
 
 15.  IANA Considerations
 
+
+
+
+Ferro                   Expires 11 February 2027               [Page 20]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
 15.1.  Underscore-Scoped Domain Name Registration
 
    This document requests registration of the following entry in the
@@ -1054,17 +1135,6 @@ Internet-Draft                  ApertoID                     August 2026
                 +---------+------------+-----------------+
 
                                  Table 1
-
-
-
-
-
-
-
-Ferro                   Expires 10 February 2027               [Page 19]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
 15.2.  ApertoID Agent Type Registry
 
@@ -1100,6 +1170,14 @@ Internet-Draft                  ApertoID                     August 2026
 
 16.  References
 
+
+
+
+Ferro                   Expires 11 February 2027               [Page 21]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
 16.1.  Normative References
 
    [RFC1035]  Mockapetris, P., "Domain names - implementation and
@@ -1113,14 +1191,6 @@ Internet-Draft                  ApertoID                     August 2026
    [RFC3986]  Berners-Lee, T., "Uniform Resource Identifier (URI):
               Generic Syntax", RFC 3986, January 2005,
               <https://www.rfc-editor.org/info/rfc3986>.
-
-
-
-
-Ferro                   Expires 10 February 2027               [Page 20]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
    [RFC4033]  Arends, R., "DNS Security Introduction and Requirements",
               RFC 4033, March 2005,
@@ -1154,6 +1224,16 @@ Internet-Draft                  ApertoID                     August 2026
               Section in RFCs", RFC 8126, June 2017,
               <https://www.rfc-editor.org/info/rfc8126>.
 
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 22]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
               2119 Key Words", RFC 8174, May 2017,
               <https://www.rfc-editor.org/info/rfc8174>.
@@ -1168,15 +1248,6 @@ Internet-Draft                  ApertoID                     August 2026
    [RFC6376]  Crocker, D., "DomainKeys Identified Mail (DKIM)
               Signatures", RFC 6376, September 2011,
               <https://www.rfc-editor.org/info/rfc6376>.
-
-
-
-
-
-Ferro                   Expires 10 February 2027               [Page 21]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
    [RFC7208]  Kitterman, S., "Sender Policy Framework (SPF)", RFC 7208,
               April 2014, <https://www.rfc-editor.org/info/rfc7208>.
@@ -1210,6 +1281,15 @@ Internet-Draft                  ApertoID                     August 2026
               <https://datatracker.ietf.org/doc/html/draft-klrc-aiagent-
               auth-00>.
 
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 23]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    [I-D.ferro-dnsop-apertodns-protocol]
               Ferro, A., "ApertoDNS Protocol: A Modern Dynamic DNS
               Update Protocol", Work in Progress, Internet-Draft, draft-
@@ -1220,19 +1300,11 @@ Internet-Draft                  ApertoID                     August 2026
    [APERTOID-SIG]
               Ferro, A., "ApertoID-Signature: HTTP Request Signing for
               AI Agent Identity", Work in Progress, Internet-Draft,
-              draft-ferro-httpbis-apertoid-sig-01, 2026,
+              draft-ferro-httpbis-apertoid-sig-02, 2026,
               <https://datatracker.ietf.org/doc/html/draft-ferro-
-              httpbis-apertoid-sig-01>.  Work in progress.
+              httpbis-apertoid-sig-02>.  Work in progress.
 
 Appendix A.  Complete Examples
-
-
-
-
-Ferro                   Expires 10 February 2027               [Page 22]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
 A.1.  Basic Deployment
 
@@ -1264,6 +1336,16 @@ A.2.  Third-Party Delegation
 
 A.3.  Emergency Revocation and Key Rotation
 
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 24]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    ; Step 1: Immediately revoke compromised agent
    leadhunter._apertoid.example.com. 300 IN TXT
      "v=APERTOID1; status=revoked"
@@ -1282,14 +1364,6 @@ Appendix B.  Integration with Application-Layer Protocols
    ApertoID is designed to be protocol-agnostic at the application
    layer.  MCP Server Cards at "/.well-known/mcp/server-card.json"
    provide capability discovery; ApertoID complements MCP by providing
-
-
-
-Ferro                   Expires 10 February 2027               [Page 23]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    DNS-based verification that a given MCP server is authorized by the
    claimed domain.  A2A Agent Cards at "/.well-known/agent.json" provide
    agent discovery; ApertoID provides a DNS-based trust anchor
@@ -1300,16 +1374,89 @@ Internet-Draft                  ApertoID                     August 2026
    have?" while ApertoID answers "is this agent genuinely authorized by
    this domain?"
 
-Appendix C.  Changes from -00
+Appendix C.  Changes from -01
 
    This appendix is non-normative and summarizes the changes made in
-   this revision.
+   this revision.  All four changes resolve ambiguities and gaps
+   identified while building a complete reference verifier from the -01
+   text.
+
+   NORMATIVE BEHAVIOR CHANGES (a conforming -01 verifier may behave
+   differently):
+
+   *  DELEGATION LIMIT DISAMBIGUATED (Section 8): the delegation limit
+      is now stated unambiguously as "a verifier MUST follow at most TWO
+      include= delegations (the original record plus up to two delegated
+      targets); a chain requiring a third include hop results in
+      temperror".  The -01 text said "maximum delegation depth is 2
+      (i.e., the original record plus one level of include)", where the
+      number "2" (two hops) and the parenthetical ("one level of
+      include", one hop) disagreed by one level. -02 resolves this in
+      favour of TWO hops, preserving the capability the -01 number
+      already granted rather than reducing it (a one-hop reading would
+
+
+
+Ferro                   Expires 11 February 2027               [Page 25]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
+      have removed something -01 permitted).  Safety at this depth is
+      provided not by reducing it but by the other Section 8 limits, all
+      unchanged: the per-hop revocation re-check below, circular-
+      reference detection, and the 10-query total-lookup cap.  The
+      numeric depth is stated only in Section 8; the Section 11.2
+      algorithm refers to Section 8 rather than repeating a number, so
+      the two cannot drift.  (An implementer who read -01 as one hop
+      will now allow two; hence this is listed as a behavior change.)
+
+   *  REVOCATION OF DELEGATED TARGETS (Sections 8 and 11.2): the
+      revocation check (Section 10.1) MUST now be applied to EACH record
+      resolved through an "include" reference, not only the original
+      Agent Declaration Record.  The -01 algorithm checked
+      "status=revoked" only at step 7 (the origin) before following
+      "include" at step 8, leaving the case where a delegated third-
+      party record is itself revoked unspecified; such a revocation was
+      not honored as a revocation. -02 makes a revoked record anywhere
+      in the delegation chain stop the chain with result "revoked".
+      This closes a security gap: a third party can now revoke its own
+      delegated agent and have that revocation enforced.
+
+   CLARIFICATIONS (no conforming behavior change intended; the -01 text
+   was under-specified):
+
+   *  URL TRAILING-SLASH NORMALIZATION (Section 11.4): the -01 phrase
+      "trailing slashes are normalized" did not state how many slashes,
+      which side, or whether root "/" equals an empty path. -02
+      specifies it exactly: before the case-sensitive path comparison,
+      all trailing "/" characters are removed from the path component of
+      BOTH URLs (so "/x", "/x/" and "/x//" compare equal, and root "/"
+      equals an empty path), while interior "/" characters are left
+      unchanged.
+
+   See also the companion [APERTOID-SIG], which in its -02 adds the
+   handling of a signed request to a keyless ("url"-only) agent,
+   consistent with this document's Section 7.3 and Section 11.2 (the key
+   check is skipped when no "pk" is published).
+
+Appendix D.  Changes from -00
+
+   This appendix is non-normative and summarizes the changes made in the
+   -01 revision.
 
    *  Corrected the Section 5.1 ABNF: the "pk" public key is a raw
       32-byte Ed25519 key in unpadded Base64 (exactly 43 characters, not
       an SPKI wrapping), and "prev" signatures are 64 bytes unpadded (86
       characters); the "=" padding character was removed from
       BASE64CHAR.
+
+
+
+Ferro                   Expires 11 February 2027               [Page 26]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
    *  Corrected the "label" production: "ldh-label" is now "alnum"-first
       (a leading digit is permitted), and an "underscore-label"
@@ -1335,16 +1482,6 @@ Appendix C.  Changes from -00
    *  Regenerated all example keys and signatures as real, reproducible
       Ed25519 values; aligned the "ldh-label" and signature-format
       productions to be byte-identical with [APERTOID-SIG].
-
-
-
-
-
-
-Ferro                   Expires 10 February 2027               [Page 24]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
 Acknowledgements
 
@@ -1372,29 +1509,4 @@ Author's Address
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Ferro                   Expires 10 February 2027               [Page 25]
+Ferro                   Expires 11 February 2027               [Page 27]
