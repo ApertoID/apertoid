@@ -59,6 +59,10 @@ drafts, written strictly from the spec text (the same text lives in `spec/`).
   signature via `sig.verify` with the DNS-published key. DNS is resolved through
   an injectable `Resolver`, so verification runs offline in tests and against
   live DNS in production via `DnsPythonResolver` (optional, needs `dnspython`).
+  A signed request to a `url=`-only agent record (authorized by URL, no key
+  published — a legal early deployment stage) returns `pass` with
+  `signature_verified=False`, so a caller can always tell a URL-authorized result
+  apart from a cryptographically-verified one.
 
 **Conformance harness** (`tests/`)
 - The test suite parses the record and signature examples printed in the two
@@ -93,10 +97,12 @@ What is genuinely **not** built:
   `Resolver` protocol. Production callers pass a `DnsPythonResolver`; nothing in
   the library performs network I/O on its own.
 
-The implementation was written strictly from the spec, and the ambiguities that
-surfaced in the verification procedure are catalogued as findings P1–P3 in
-[`FINDINGS.md`](FINDINGS.md) (revocation of an `include=` target, the delegation
-depth wording, and the trailing-slash URL rule).
+The implementation was written strictly from the spec, and the ambiguities and
+gaps that surfaced while building the verifier are tracked for the next draft
+revision (`-02`): findings P1–P4 in [`FINDINGS.md`](FINDINGS.md) (revocation of an
+`include=` target, the delegation-depth wording, the trailing-slash URL rule, and
+the keyless `url=`-only agent case) and the corresponding S16 in
+[`FINDINGS-sig.md`](FINDINGS-sig.md).
 
 ## Install
 
@@ -179,19 +185,30 @@ result = verify_request(
     header, resolver, method, target, body, agent_url,
     current_time=int(t), seen_nonces=set(),
 )
-print(result.outcome)   # Outcome.PASS
-print(result.step)      # "pass"
-print(result.policy)    # Policy.REJECT  (what to do if it had failed)
+print(result.outcome)             # Outcome.PASS
+print(result.step)                # "pass"
+print(result.policy)              # Policy.REJECT  (what to do if it had failed)
+print(result.pk)                  # the resolved 43-char key
+print(result.signature_verified)  # True  (the Ed25519 signature checked out)
 ```
 
 `verify_request(...)` and `verify_apertoid(...)` return a `VerificationResult`
-with `.outcome` (an `Outcome`: `pass`, `none`, `revoked`, `expired`,
-`url_mismatch`, `key_mismatch`, `permerror`, `temperror`, or the signature-layer
-`malformed`, `timestamp_invalid`, `nonce_reused`, `sig_invalid`), `.step` (the
-algorithm step that produced it), `.policy` (the domain's `p=`, so a caller
-learns both that a request failed *and* whether the domain says to reject it),
-and `.pk` (the resolved key). If the DNS side fails, `verify_request` returns
-that result without checking the signature.
+with:
+
+- `.outcome` — an `Outcome`: `pass`, `none`, `revoked`, `expired`, `url_mismatch`,
+  `key_mismatch`, `permerror`, `temperror`, or the signature-layer `malformed`,
+  `timestamp_invalid`, `nonce_reused`, `sig_invalid`.
+- `.step` — the algorithm step that produced the result (e.g. `"11.2#7"`, `"sig#9"`,
+  `"pass"`), for logging and debugging.
+- `.policy` — the domain's `p=`, so a caller learns both that a request failed
+  *and* whether the domain says to reject it.
+- `.pk` — the resolved public key (or `None` for a `url=`-only record).
+- `.signature_verified` — `True` only when an Ed25519 request signature was
+  cryptographically checked and passed; `False` for a URL-only `pass`, for any
+  `verify_apertoid` (DNS-only) result, and for any failure.
+
+If the DNS side fails, `verify_request` returns that result without checking the
+signature.
 
 ## Development
 
