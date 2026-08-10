@@ -100,7 +100,15 @@ class VerificationResult:
              and available to the sig bridge regardless of agent_pubkey.
     detail   human-readable context (mismatch values, cycle path, TODO markers).
     lookups  number of DNS TXT queries consumed (feeds the Section 8 <=10 budget
-             once BLOCK 3 lands; also handy for tests).
+             in _follow_includes; also handy for tests).
+    signature_verified
+             True ONLY when an Ed25519 request signature was cryptographically
+             checked and passed. False everywhere else, including: every DNS-only
+             verify_apertoid result (that layer never checks a signature), every
+             failure, AND a url-only agent record (no pk= published) that is
+             authorized by URL match alone -- a PASS whose authorization came from
+             the URL, NOT from crypto. A caller MUST NOT read a PASS as
+             cryptographic proof unless this flag is True (F-4 / V1).
     """
 
     outcome: Outcome
@@ -109,6 +117,7 @@ class VerificationResult:
     pk: Optional[str] = None
     detail: str = ""
     lookups: int = 0
+    signature_verified: bool = False
 
     @property
     def ok(self) -> bool:
@@ -609,6 +618,15 @@ def verify_request(
     timestamp, nonce, and the step-9a rule that the nonce is inserted into the
     cache ONLY after the signature verifies. An unauthenticated request still
     never mutates verifier state.
+
+    A consequence of the reorder: Section 4's "malformed" (step 2) is also moved
+    after DNS for the common case. Only a header MISSING d= or s= is caught up
+    front (it cannot be routed to a DNS name); a header that is malformed for a
+    non-routing reason -- e.g. missing sig=, or a badly-formed t=/n= -- but whose
+    d=/s= are present is sent through DNS FIRST, so if the domain fails DNS
+    (none/temperror/etc.) the DNS result is returned and "malformed" is never
+    reached. The request is unauthorized under either verdict; the reorder only
+    changes which reason is reported.
     """
     # Parse the header enough to get d= and s= for the DNS lookup. sig.verify
     # re-parses and fully validates the header (it is the source of truth for
@@ -639,6 +657,24 @@ def verify_request(
         # crypto for an agent the domain does not authorize.
         return dns
 
+    # --- url-only agent record: authorized by URL, no key to verify against --
+    # A record with url= but no pk= is a legal, DNS-layer PASS (FINDINGS F10;
+    # the "url-only" deployment stage of [APERTOID-DNS] Section 12.1, where the
+    # key check is skipped -- Section 11.2 step 11 is conditional on pk=, and
+    # Section 11.3 "pass" says the key matches only "if applicable"). There is
+    # no published key to check the signature against, so we do NOT call
+    # sig.verify. The verdict is the DNS-layer pass on URL authorization, but
+    # signature_verified stays False so the caller is not given false
+    # cryptographic assurance (decision V1). [APERTOID-SIG] Section 4 does not
+    # specify this keyless case -- see FINDINGS.md P4.
+    if dns.pk is None:
+        return VerificationResult(
+            Outcome.PASS, "pass", dns.policy, pk=None,
+            detail="authorized by URL match; agent record publishes no pk, "
+                   "signature not cryptographically verified",
+            lookups=dns.lookups, signature_verified=False,
+        )
+
     # --- Signature layer (Section 4 steps 3-4, 7-9a): sig.verify whole --
     # Decode the DNS-resolved raw 32-byte Ed25519 key. dns.pk passed pk-format
     # validation in the parser (43 unpadded Base64 chars), but guard the decode
@@ -651,6 +687,7 @@ def verify_request(
         return VerificationResult(
             Outcome.MALFORMED, "sig#8", dns.policy,
             pk=dns.pk, detail=f"resolved pk is not a valid Ed25519 key: {exc}",
+            lookups=dns.lookups,
         )
 
     result = sig.verify(
@@ -661,6 +698,8 @@ def verify_request(
         _SIG_OUTCOME.get(result.result, Outcome.MALFORMED),
         _SIG_STEP.get(result.result, "sig#2"),
         dns.policy, pk=dns.pk, detail=result.detail, lookups=dns.lookups,
+        # signature_verified is True ONLY when the Ed25519 check actually passed.
+        signature_verified=(result.result == "pass"),
     )
 
 

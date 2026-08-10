@@ -394,6 +394,53 @@ URLs (so an empty path and '/' are equivalent); interior slashes are not
 altered." Confirm whether root-vs-empty equivalence is intended (this
 implementation assumes yes).
 
+## P4 — a signed request to a keyless (url-only) agent is unspecified by the -sig draft (MEDIUM, cross-draft gap)
+
+This is a cross-draft finding surfaced by wiring the two layers together in
+`verify_request` (also noted in [`FINDINGS-sig.md`](FINDINGS-sig.md)).
+
+**The case:** an `ApertoID-Signature` header is present on a request, and the
+resolved Agent Declaration Record is **url-only** -- it carries `url=` but no
+`pk=`. This record is fully legal: DNS draft §7.3 says "A record MAY legitimately
+carry neither 'k' nor 'pk': for example, the 'url'-only deployment stage described
+in Section 12.1", and §12.1 makes url-only deployment **stage (2)**, with keys
+added at **stage (4)**.
+
+**What each draft says:**
+
+- **DNS draft (-dnsop) specifies the DNS-layer verdict.** The key check is
+  explicitly OPTIONAL: §4 step 4 ("...and **optionally** that the agent's presented
+  key matches"), §11.2 step 11 ("If record contains a pk= tag **AND** agent_pubkey
+  is provided"), §11.3 pass ("...and, **if applicable**, the cryptographic key
+  matches"), §11.1 (agent_pubkey received "optionally"). So on the DNS layer a
+  url-only record is a `pass`; the key/signature check is simply skipped.
+- **-sig draft (§4) does NOT specify the keyless case.** Step 5 says
+  unconditionally "Extract pk= (public key) and check exp=", and step 8 says
+  "Verify Ed25519 signature sig= ... using public key pk= from DNS record" -- both
+  assume a `pk=` exists. §4.1's result values (`malformed`, `timestamp_invalid`,
+  `nonce_reused`, `sig_invalid`) contain nothing for "a signature is present but the
+  resolved record has no key to check it against." The algorithm has no branch for
+  it.
+
+**Gap:** neither draft states whether, when a signature is present but the resolved
+record is keyless, the signature is (a) ignored -> accept on URL authorization,
+(b) required -> reject, or (c) an error.
+
+**Implementation behavior (decision, following the DNS draft):** `verify_request`
+returns the DNS-layer `pass` (option (a)) -- authorized by URL match -- but sets a
+new `VerificationResult.signature_verified` flag to **False** and records in
+`detail` that the signature was not cryptographically verified. `sig.verify` is not
+called (there is no key). This gives the caller the pass without false cryptographic
+assurance. (Before this fix, the bridge mislabeled the case as `malformed`, which is
+wrong under both drafts: the header is not unparseable.)
+
+**Proposed fix for -02:** -sig §4 should explicitly handle the keyless resolved
+record: after step 5, "If the resolved Agent Declaration Record contains no `pk=`,
+the request is authorized on the basis of the DNS-layer verification alone (the
+`url`-only deployment stage); the signature is not cryptographically verified, and
+the verifier MUST NOT report a cryptographically-verified result." A companion note
+in §11.3 pass could clarify that a `pass` covers URL-only authorization.
+
 ---
 
 ## Summary table
@@ -415,3 +462,4 @@ implementation assumes yes).
 | P1  | 11.2, 8, 10.1     | MEDIUM   | Revocation of an `include=` target unspecified; impl re-checks per hop (F-2) |
 | P2  | 8                 | LOW      | "max depth 2" vs "(original + one include)"; impl follows 1 include hop (conservative) |
 | P3  | 11.4              | LOW      | "trailing slashes are normalized" under-specified (how many / which side / root≡empty) |
+| P4  | -sig §4; 7.3, 12.1 | MEDIUM  | Signed request to a keyless (url-only) agent unspecified by -sig §4; impl passes on URL auth, signature_verified=False |

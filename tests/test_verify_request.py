@@ -97,6 +97,33 @@ def test_happy_path_passes():
     assert res.pk == _pk_b64(sk)
 
 
+def test_keyed_record_success_sets_signature_verified():
+    # A real Ed25519 check that PASSES must set signature_verified True (V1).
+    sk = _key()
+    header = _signed_header(sk)
+    res = _verify(header, _resolver(_pk_b64(sk)), seen_nonces=set())
+    assert res.outcome is Outcome.PASS
+    assert res.signature_verified is True
+
+
+def test_url_only_record_passes_without_crypto():
+    # A url-only agent record (no pk=) is a legal DNS-layer PASS (F10). A signed
+    # request to it is authorized by URL match, but the signature is NOT
+    # cryptographically verified: PASS with signature_verified False, pk None
+    # (decision V1; spec gap P4). sig.verify is never reached, so even a
+    # wrong-key signature is irrelevant here.
+    header = _signed_header(_other_key())  # any signature; not checked
+    r = _resolver(_pk_b64(_key()), agent=f"v=APERTOID1; url={AGENT_URL}")
+    res = _verify(header, r, seen_nonces=set())
+    assert res.outcome is Outcome.PASS
+    assert res.step == "pass"
+    assert res.policy is Policy.REJECT
+    assert res.signature_verified is False
+    assert res.pk is None
+    assert res.lookups == 2  # policy + agent, no crypto
+    assert "not cryptographically verified" in res.detail
+
+
 # --- DNS failure short-circuits before the signature check ------------------
 
 def test_no_policy_is_none_without_sig_check():
@@ -161,6 +188,7 @@ def test_valid_dns_wrong_signing_key_is_sig_invalid():
     assert res.outcome is Outcome.SIG_INVALID
     assert res.step == "sig#9"
     assert res.policy is Policy.REJECT  # policy still attached from DNS
+    assert res.signature_verified is False  # V1: a failed crypto check is not "verified"
 
 
 def test_tampered_body_is_sig_invalid():

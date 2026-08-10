@@ -402,6 +402,34 @@ timestamp width or state it is a 64-bit Unix seconds value.
 
 ---
 
+## S16 — §4 assumes a pk always exists; keyless (url-only) agent case unspecified (MEDIUM)
+
+Surfaced when wiring the signature layer to the DNS layer end-to-end
+(`verify_request`). Recorded in full as **P4** in the DNS-draft
+[`FINDINGS.md`](FINDINGS.md); summarized here because the defect is in this draft.
+
+**§4 steps 5 and 8:** step 5 says unconditionally "Perform DNS verification per
+[APERTOID-DNS]: ... Extract pk= (public key) and check exp=", and step 8 says
+"Verify Ed25519 signature sig= ... using public key pk= from DNS record". Both
+assume the resolved Agent Declaration Record carries a `pk=`. But the DNS draft
+(§7.3, §12.1) makes a **url-only** record -- `url=` with no `pk=` -- legal and
+indeed the recommended early deployment stage. When such a record is resolved for
+a request that DOES carry an `ApertoID-Signature` header, §4 has no branch: there
+is no key to run step 8 against, and §4.1's result values
+(`malformed`/`timestamp_invalid`/`nonce_reused`/`sig_invalid`) do not cover it.
+
+**Implementation behavior:** `verify_request` follows the DNS draft's optional-key
+semantics -- returns the DNS-layer `pass` (authorized by URL match) but sets
+`VerificationResult.signature_verified = False` and does not call `sig.verify`
+(there is no key). The caller gets the pass without false cryptographic assurance.
+
+**Proposed fix:** §4 should explicitly handle the keyless resolved record: after
+step 5, if the record has no `pk=`, the request is authorized on the DNS-layer
+verification alone (the url-only stage), the signature is not cryptographically
+verified, and the verifier MUST NOT report a cryptographically-verified result.
+
+---
+
 ## Summary table
 
 | ID  | Section(s)          | Severity | One-liner |
@@ -421,6 +449,7 @@ timestamp width or state it is a 64-bit Unix seconds value.
 | S13 | 2.2                 | LOW      | `d=` domain-name uses the pre-F9 too-strict label form |
 | S14 | App A               | LOW      | verifier example shows `pk=MCow...` SPKI key, contradicting corrected DNS draft (F2) |
 | S15 | 2.3, 4              | LOW      | two-sided timestamp window only in the algorithm, not the tag prose; `t` width unbounded |
+| S16 | 4 (5/8); DNS 7.3/12.1| MEDIUM  | §4 assumes pk always exists; keyless url-only agent + signature unspecified (= DNS P4) |
 
 **Consistency-with-DNS-draft summary:** S1 (sig length ↔ F1), S4 (DER sig ↔ F2
 SPKI key), S12 (selector rule ↔ DNS §7.1), S13 (`label` ABNF ↔ F9), and S14
