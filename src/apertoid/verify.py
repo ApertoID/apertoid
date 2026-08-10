@@ -5,10 +5,16 @@ and the HTTP signature layer (sig.py) into the verification procedure of
 draft-ferro-dnsop-apertoid-01 Section 11.2 and the sig<->DNS bridge of
 draft-ferro-httpbis-apertoid-sig-01 Section 4.
 
-SCOPE so far: verify_apertoid() is complete -- Section 11.2 steps 1-12,
-Section 6.1 multi-record selection, Section 8 include= delegation
-(_follow_includes), and Section 11.4 url matching (_url_matches). verify_request()
-(the sig bridge, F-5) is BLOCK 5 and is not built here.
+SCOPE: Phase 2 is complete. verify_apertoid() implements Section 11.2 steps
+1-12 (with Section 6.1 selection, Section 8 include= delegation, Section 11.4
+url matching), and verify_request() is the sig<->DNS bridge (-sig Section 4,
+decision F-5): it resolves the key via verify_apertoid then verifies the request
+signature via sig.verify, returning one unified VerificationResult.
+
+NOT built (stated honestly): prev= key-rotation continuity verification (§10.2,
+decision F-1 -- deferred, needs a historical key cache); live DNS is optional
+via resolver.DnsPythonResolver (the core logic depends only on the injected
+Resolver protocol).
 
 RESULT TYPE (decision F-6): every outcome carries the failing step id and the
 domain's resolved policy p=, so a caller learns both "unauthorized" and "the
@@ -23,6 +29,10 @@ from enum import Enum
 from typing import Optional
 from urllib.parse import urlsplit
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+from . import sig
 from .parser import VERSION, ParsedRecord, RecordType, parse_record
 from .resolver import LookupStatus, Resolver, TxtLookup
 
@@ -539,3 +549,122 @@ def verify_apertoid(
     return VerificationResult(
         Outcome.PASS, "pass", policy, pk=resolved_pk, lookups=lookups,
     )
+
+
+# ---------------------------------------------------------------------------
+# Section 4 (-sig): the signature <-> DNS bridge (decision F-5)
+# ---------------------------------------------------------------------------
+
+# sig.verify() result string -> unified Outcome (Section 4.1 values).
+_SIG_OUTCOME = {
+    "pass": Outcome.PASS,
+    "malformed": Outcome.MALFORMED,
+    "timestamp_invalid": Outcome.TIMESTAMP_INVALID,
+    "nonce_reused": Outcome.NONCE_REUSED,
+    "sig_invalid": Outcome.SIG_INVALID,
+}
+
+# sig.verify() result string -> step id for the unified result.
+_SIG_STEP = {
+    "malformed": "sig#2",
+    "timestamp_invalid": "sig#3",
+    "nonce_reused": "sig#4",
+    "sig_invalid": "sig#9",
+    "pass": "pass",
+}
+
+
+def verify_request(
+    header_value: str,
+    resolver: Resolver,
+    method: str,
+    target: str,
+    body: bytes,
+    agent_url: str,
+    *,
+    current_time: int,
+    window: int = 300,
+    seen_nonces: Optional[set] = None,
+) -> VerificationResult:
+    """Verify a signed HTTP request end to end (-sig Section 4, decision F-5).
+
+    Ties the DNS layer (verify_apertoid) to the signature layer (sig.verify).
+    Returns a single unified VerificationResult carrying outcome + step + the
+    domain's policy p= (F-6).
+
+    agent_url is the canonical URL the request was RECEIVED on, supplied
+    explicitly by the caller (decision F-Q1). It is deliberately NOT
+    reconstructed from the Host header: Host is not part of the signing input
+    (-sig Section 6.1/6.2), so trusting it for the Section 11.4 url match would
+    let an attacker who can set Host bypass the check. The caller, which knows
+    the real endpoint the request hit, owns this value.
+
+    ORDERING NOTE (F-Q2): the numbered -sig Section 4 algorithm checks the
+    timestamp (step 3) and nonce (step 4) BEFORE the DNS lookup (steps 5-6).
+    This bridge resolves DNS FIRST and then calls sig.verify() whole, which runs
+    the timestamp/nonce checks internally. That reorders steps 3-4 after 5-6 for
+    efficiency (a request to a domain that publishes no ApertoID, or names a
+    revoked/expired agent, is rejected without any crypto or clock work), but
+    preserves Section 4 semantics: sig.verify is the single source of truth for
+    timestamp, nonce, and the step-9a rule that the nonce is inserted into the
+    cache ONLY after the signature verifies. An unauthenticated request still
+    never mutates verifier state.
+    """
+    # Parse the header enough to get d= and s= for the DNS lookup. sig.verify
+    # re-parses and fully validates the header (it is the source of truth for
+    # "malformed"); here we only need the routing tags. If the header is
+    # unparseable or missing d/s, hand off to sig.verify to produce the
+    # canonical "malformed" result rather than guessing.
+    ph = sig.parse_header(header_value)
+    if "d" not in ph.tags or "s" not in ph.tags:
+        result = sig.verify(
+            header_value, _NULL_PUBKEY, method, target, body,
+            current_time=current_time, window=window, seen_nonces=seen_nonces,
+        )
+        return VerificationResult(
+            _SIG_OUTCOME.get(result.result, Outcome.MALFORMED),
+            _SIG_STEP.get(result.result, "sig#2"),
+            Policy.UNSET, detail=result.detail,
+        )
+
+    # --- DNS layer (Section 4 steps 5-6): resolve + validate, get pk ----
+    dns = verify_apertoid(
+        ph.tags["d"], ph.tags["s"], agent_url, resolver,
+        current_time=current_time,
+    )
+    if dns.outcome is not Outcome.PASS:
+        # DNS verification failed (none/revoked/expired/url_mismatch/permerror/
+        # temperror). Return it verbatim: it already carries outcome + step +
+        # policy. The signature is NOT checked -- no point, and we avoid doing
+        # crypto for an agent the domain does not authorize.
+        return dns
+
+    # --- Signature layer (Section 4 steps 3-4, 7-9a): sig.verify whole --
+    # Decode the DNS-resolved raw 32-byte Ed25519 key. dns.pk passed pk-format
+    # validation in the parser (43 unpadded Base64 chars), but guard the decode
+    # so a surprising value yields malformed rather than an exception.
+    try:
+        pubkey = Ed25519PublicKey.from_public_bytes(
+            sig.b64_unpadded_decode(dns.pk)
+        )
+    except (ValueError, InvalidSignature, TypeError) as exc:
+        return VerificationResult(
+            Outcome.MALFORMED, "sig#8", dns.policy,
+            pk=dns.pk, detail=f"resolved pk is not a valid Ed25519 key: {exc}",
+        )
+
+    result = sig.verify(
+        header_value, pubkey, method, target, body,
+        current_time=current_time, window=window, seen_nonces=seen_nonces,
+    )
+    return VerificationResult(
+        _SIG_OUTCOME.get(result.result, Outcome.MALFORMED),
+        _SIG_STEP.get(result.result, "sig#2"),
+        dns.policy, pk=dns.pk, detail=result.detail, lookups=dns.lookups,
+    )
+
+
+# A syntactically-valid but useless key, used only to let sig.verify produce the
+# canonical "malformed" result for a header missing d=/s= (it never reaches the
+# crypto step in that case, because parse_header fails first).
+_NULL_PUBKEY = Ed25519PublicKey.from_public_bytes(b"\x00" * 32)

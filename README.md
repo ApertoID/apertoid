@@ -43,12 +43,29 @@ drafts, written strictly from the spec text (the same text lives in `spec/`).
   replay cache only *after* the signature verifies, so a request with a bad
   signature cannot burn a nonce or flood the cache.
 
+**End-to-end verification** (`apertoid.verify`)
+- `verify_apertoid(claimed_domain, selector, agent_url, resolver, ...)`
+  implements the DNS verification procedure of Section 11.2 in full: policy and
+  agent-record lookup, Section 6.1 multi-record selection, revocation
+  (checked first), `include=` delegation with the Section 8 DoS limits (one
+  delegation hop, at most 10 total DNS queries, cycle detection) and a
+  revocation re-check on every delegated record, `exp` expiry against
+  wall-clock time, and Section 11.4 URL matching. It returns a
+  `VerificationResult` carrying the outcome, the algorithm step that produced
+  it, the domain's enforcement policy `p=`, and the resolved public key.
+- `verify_request(header_value, resolver, method, target, body, agent_url, ...)`
+  is the signature-to-DNS bridge (`-sig` Section 4): it resolves and validates
+  the agent via `verify_apertoid`, and only if that passes verifies the request
+  signature via `sig.verify` with the DNS-published key. DNS is resolved through
+  an injectable `Resolver`, so verification runs offline in tests and against
+  live DNS in production via `DnsPythonResolver` (optional, needs `dnspython`).
+
 **Conformance harness** (`tests/`)
 - The test suite parses the record and signature examples printed in the two
   drafts and checks them byte-for-byte: every example DNS record parses as the
   spec dictates, and the drafts' own example signature cryptographically
   verifies against the published public key.
-- **82 tests**, run in CI across Python 3.10 through 3.14.
+- Run in CI across Python 3.10 through 3.14.
 
 The spec work also produced two catalogues of ambiguities and defects found
 while implementing from the text: [`FINDINGS.md`](FINDINGS.md) (DNS draft) and
@@ -56,16 +73,30 @@ while implementing from the text: [`FINDINGS.md`](FINDINGS.md) (DNS draft) and
 
 ## Scope
 
-This is a reference implementation of the core, per-record and per-request
-operations, plus a harness proving the drafts' own examples are correct. It is
-**not** a full turnkey verifier yet. In particular, the end-to-end resolver that
-ties the two layers together — receive a signed HTTP request, look up the
-agent's key in DNS, follow `include=` delegation, check `exp`/revocation, then
-verify the signature (a single `verify_apertoid(...)` entry point) — is **not
-yet built**. Also not yet implemented: live DNS lookups, `include=` delegation
-resolution, `exp` expiry checks against wall-clock time, Section 11.4 URL
-matching, and `prev=` key-rotation continuity verification. `verify()` today
-takes the public key as an argument rather than resolving it from DNS.
+Both layers and the bridge between them are implemented. `verify_apertoid`
+covers the full Section 11.2 DNS verification algorithm — record lookup and
+selection, revocation, `include=` delegation with its Section 8 limits, `exp`
+expiry, and Section 11.4 URL matching — and `verify_request` ties that to the
+signature check of `-sig` Section 4, resolving the agent's key from DNS instead
+of taking it as an argument. DNS access goes through an injectable `Resolver`;
+`DnsPythonResolver` provides live lookups (optional, needs `dnspython`), while
+`StaticResolver` drives the tests offline.
+
+What is genuinely **not** built:
+
+- **`prev=` key-rotation continuity verification** (Section 10.2). Following a
+  key rotation requires a cache of previously seen keys to check the `prev`
+  signature against; that historical key store is deferred to future work. Key
+  rotation still works at the DNS-authority level (a new key published by the
+  zone owner is accepted); only the extra continuity proof is unverified.
+- **Live DNS is optional, not the default.** The core logic depends only on the
+  `Resolver` protocol. Production callers pass a `DnsPythonResolver`; nothing in
+  the library performs network I/O on its own.
+
+The implementation was written strictly from the spec, and the ambiguities that
+surfaced in the verification procedure are catalogued as findings P1–P3 in
+[`FINDINGS.md`](FINDINGS.md) (revocation of an `include=` target, the delegation
+depth wording, and the trailing-slash URL rule).
 
 ## Install
 
@@ -108,18 +139,66 @@ result = sig.verify(
 print(result.result)     # "pass"
 ```
 
-`verify(...)` returns a `VerifyResult` whose `.result` is one of `pass`,
-`malformed`, `timestamp_invalid`, `nonce_reused`, or `sig_invalid`. In a real
-deployment the `public_key` argument is the key published in the agent's DNS
-record; resolving it from DNS is the not-yet-built end-to-end step described
-under Scope.
+`sig.verify(...)` returns a `VerifyResult` whose `.result` is one of `pass`,
+`malformed`, `timestamp_invalid`, `nonce_reused`, or `sig_invalid`. It takes the
+public key as an argument. To resolve that key from DNS and verify the whole
+request in one call, use `verify_request` below.
+
+### End-to-end: verify a signed request against DNS
+
+```python
+from apertoid import verify_request, StaticResolver, sig, Outcome
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+# The agent's signing key, and its raw public key encoded for the DNS record
+# (43-char unpadded Base64).
+sk = Ed25519PrivateKey.generate()
+pk_raw = sk.public_key().public_bytes_raw()
+pk_b64 = sig.b64_unpadded(pk_raw)
+
+d, s, t, n = "example.com", "leadhunter", "1711100000", "a1b2c3d4e5f6"
+method, target, body = "POST", "/mcp/tools/search", b'{"query": "leads"}'
+agent_url = "https://agent.example.com/mcp"   # canonical URL the request hit
+
+# The domain's DNS records. In production this is a DnsPythonResolver; here a
+# StaticResolver stands in so the example is self-contained.
+resolver = StaticResolver({
+    "_apertoid.example.com": "v=APERTOID1; p=reject",
+    "leadhunter._apertoid.example.com": (
+        f"v=APERTOID1; url={agent_url}; k=ed25519; pk={pk_b64}; "
+        f"type=ai; exp=4102444800"
+    ),
+})
+
+# The agent signs the request and sends the header.
+signature = sig.sign(sk, d, s, t, n, method, target, body)
+header = sig.build_header(d, s, t, n, signature)
+
+# The service verifies it end to end: DNS lookup + key resolution + signature.
+result = verify_request(
+    header, resolver, method, target, body, agent_url,
+    current_time=int(t), seen_nonces=set(),
+)
+print(result.outcome)   # Outcome.PASS
+print(result.step)      # "pass"
+print(result.policy)    # Policy.REJECT  (what to do if it had failed)
+```
+
+`verify_request(...)` and `verify_apertoid(...)` return a `VerificationResult`
+with `.outcome` (an `Outcome`: `pass`, `none`, `revoked`, `expired`,
+`url_mismatch`, `key_mismatch`, `permerror`, `temperror`, or the signature-layer
+`malformed`, `timestamp_invalid`, `nonce_reused`, `sig_invalid`), `.step` (the
+algorithm step that produced it), `.policy` (the domain's `p=`, so a caller
+learns both that a request failed *and* whether the domain says to reject it),
+and `.pk` (the resolved key). If the DNS side fails, `verify_request` returns
+that result without checking the signature.
 
 ## Development
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -e ".[test]"
-.venv/bin/python -m pytest -q        # 82 tests
+.venv/bin/python -m pytest -q
 ```
 
 ## License
