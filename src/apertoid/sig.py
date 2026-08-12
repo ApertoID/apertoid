@@ -37,8 +37,30 @@ from cryptography.exceptions import InvalidSignature
 
 LF = "\n"
 
+# Timestamp validity window bounds (Section 5): default 300s, configurable
+# within the INCLUSIVE range 60 to 600 seconds. Single source of truth --
+# validated by _check_window(), called from every public entry point that
+# accepts a window, so sig.verify and verify.verify_request cannot diverge.
+DEFAULT_WINDOW = 300
+MIN_WINDOW = 60
+MAX_WINDOW = 600
+
 # SHA-256 of the empty string (Section 3.1 empty-body hash).
 EMPTY_BODY_SHA256 = hashlib.sha256(b"").hexdigest()
+
+
+def _check_window(window: int) -> None:
+    """Validate the validity window against the Section 5 range [60, 600].
+
+    A window outside this range is an insecure configuration (too large widens
+    the replay window; too small makes legitimate requests fail on normal clock
+    skew), so it is rejected loudly at call time rather than accepted silently.
+    """
+    if not MIN_WINDOW <= window <= MAX_WINDOW:
+        raise ValueError(
+            f"validity window {window} is outside the allowed range "
+            f"{MIN_WINDOW} to {MAX_WINDOW} seconds (Section 5)"
+        )
 
 # Standard (unpadded) Base64 alphabet, 86 chars for a 64-byte Ed25519 sig.
 # NB: the draft's ABNF names this "base64url" but lists "+" "/" "=" -- see
@@ -209,7 +231,7 @@ def verify(
     target: str,
     body: bytes,
     current_time: int,
-    window: int = 300,
+    window: int = DEFAULT_WINDOW,
     seen_nonces: Optional[set] = None,
     max_body_size: Optional[int] = None,
 ) -> VerifyResult:
@@ -224,7 +246,13 @@ def verify(
     verifier to hash an arbitrarily large body with a request that was never going
     to verify. Default None means no limit (backwards compatible): the library
     provides the mechanism, the caller sets the policy.
+
+    Raises ValueError if window is outside the Section 5 range [60, 600]; an
+    out-of-range window is an insecure configuration and fails loudly at call
+    time rather than silently.
     """
+    _check_window(window)
+
     ph = parse_header(header_value)
     if not ph.is_valid:
         return VerifyResult("malformed", "; ".join(ph.diagnostics))

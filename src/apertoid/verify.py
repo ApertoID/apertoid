@@ -601,7 +601,7 @@ def verify_request(
     agent_url: str,
     *,
     current_time: int,
-    window: int = 300,
+    window: int = sig.DEFAULT_WINDOW,
     seen_nonces: Optional[set] = None,
     max_body_size: Optional[int] = None,
 ) -> VerificationResult:
@@ -645,7 +645,14 @@ def verify_request(
     (none/temperror/etc.) the DNS result is returned and "malformed" is never
     reached. The request is unauthorized under either verdict; the reorder only
     changes which reason is reported.
+
+    Raises ValueError if window is outside the Section 5 range [60, 600]. This is
+    checked up front (via the same sig._check_window used by sig.verify) so a
+    misconfigured window fails loudly even on a path that returns before reaching
+    sig.verify (e.g. a DNS failure or a url-only agent).
     """
+    sig._check_window(window)
+
     # Parse the header enough to get d= and s= for the DNS lookup. sig.verify
     # re-parses and fully validates the header (it is the source of truth for
     # "malformed"); here we only need the routing tags. If the header is
