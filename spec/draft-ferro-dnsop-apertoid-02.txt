@@ -131,12 +131,12 @@ Internet-Draft                  ApertoID                     August 2026
    Appendix A.  Complete Examples  . . . . . . . . . . . . . . . . .  28
      A.1.  Basic Deployment  . . . . . . . . . . . . . . . . . . . .  28
      A.2.  Third-Party Delegation  . . . . . . . . . . . . . . . . .  28
-     A.3.  Emergency Revocation and Key Rotation . . . . . . . . . .  28
+     A.3.  Emergency Revocation and Key Rotation . . . . . . . . . .  29
    Appendix B.  Integration with Application-Layer Protocols . . . .  29
-   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  29
-   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  30
-   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  31
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  31
+   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  30
+   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  31
+   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  32
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  32
 
 1.  Introduction
 
@@ -149,19 +149,19 @@ Internet-Draft                  ApertoID                     August 2026
    from impersonators, to verify which domain authorized an agent, or to
    enforce policies when verification fails.
 
-   This gap is causing measurable harm.  In one documented case, an AI
-   agent disguised itself as a standard web browser to access a service
-   under false pretenses.  The Salesloft-Drift OAuth breach (2025)
-   exploited over-permissioned machine tokens to compromise over 700
-   companies.  Research indicates that non-human identities outnumber
-   human identities by up to 144:1 in cloud-native environments, yet 68%
-   of organizations lack identity security controls for AI (CyberArk's
-   2025 Identity Security Landscape).
+   This gap is not hypothetical.  Agents already act on behalf of
+   domains in interactions with services that have no way to confirm the
+   claim, and the volume of such interactions is growing rather than
+   shrinking.  ApertoID addresses the narrow, verifiable question at the
+   root of the problem: has the domain actually declared this agent as
+   acting on its behalf?
 
-   Email faced an analogous identity problem two decades ago: any server
-   could send email claiming any sender address.  The solution was a
-   layered DNS-based authentication framework: SPF [RFC7208] declared
-   authorized sending IPs, DKIM [RFC6376] provided cryptographic
+
+
+
+
+
+
 
 
 
@@ -170,6 +170,10 @@ Ferro                   Expires 11 February 2027                [Page 3]
 Internet-Draft                  ApertoID                     August 2026
 
 
+   Email faced an analogous identity problem two decades ago: any server
+   could send email claiming any sender address.  The solution was a
+   layered DNS-based authentication framework: SPF [RFC7208] declared
+   authorized sending IPs, DKIM [RFC6376] provided cryptographic
    signatures, and DMARC [RFC9989] unified them with enforcement
    policies.  ApertoID applies the same proven architectural pattern to
    AI agent identity.
@@ -213,11 +217,7 @@ Internet-Draft                  ApertoID                     August 2026
    discovery.  ApertoID is designed to complement these efforts, not
    replace them:
 
-   DANE (RFC 6698)  DANE authenticates TLS certificates for servers via
-
-
-
-
+   DANE (RFC 6698)  DANE [RFC6698] authenticates TLS certificates for
 
 
 
@@ -226,11 +226,11 @@ Ferro                   Expires 11 February 2027                [Page 4]
 Internet-Draft                  ApertoID                     August 2026
 
 
-      TLSA DNS records.  However, DANE binds identity to a TLS endpoint
-      (server), not to an agent.  Multiple agents may share a server,
-      and a single agent may operate across multiple servers.  ApertoID
-      binds identity to the agent itself, independent of the underlying
-      TLS infrastructure.
+      servers via TLSA DNS records.  However, DANE binds identity to a
+      TLS endpoint (server), not to an agent.  Multiple agents may share
+      a server, and a single agent may operate across multiple servers.
+      ApertoID binds identity to the agent itself, independent of the
+      underlying TLS infrastructure.
 
    DNS-AID (draft-mozleywilliams-dnsop-dnsaid)  DNS-AID
       [I-D.mozleywilliams-dnsop-dnsaid] provides DNS-based discovery of
@@ -255,12 +255,12 @@ Internet-Draft                  ApertoID                     August 2026
       ApertoID declaration as a domain-level anchor for the agents it
       authenticates.
 
-   HTTP Message Signatures (RFC 9421)  RFC 9421 provides a general-
-      purpose HTTP signing framework.  ApertoID-Signature (defined in
-      the companion document [APERTOID-SIG]) is a deliberately
-      simplified, single-purpose mechanism optimized for AI agent
-      identity verification with Ed25519 only.  It is designed to be
-      implementable in minimal code without requiring the full
+   HTTP Message Signatures (RFC 9421)  HTTP Message Signatures [RFC9421]
+      provide a general-purpose HTTP signing framework.  ApertoID-
+      Signature (defined in the companion document [APERTOID-SIG]) is a
+      deliberately simplified, single-purpose mechanism optimized for AI
+      agent identity verification with Ed25519 only.  It is designed to
+      be implementable in minimal code without requiring the full
       complexity of RFC 9421's component identifiers and algorithm
       negotiation.
 
@@ -381,7 +381,7 @@ Internet-Draft                  ApertoID                     August 2026
       the authorization-versus-identity boundary in Section 14.1.
 
    *  When full message integrity or header integrity is required, TLS
-      and HTTP Message Signatures (RFC 9421) are the appropriate
+      and HTTP Message Signatures [RFC9421] are the appropriate
       mechanisms; ApertoID-Signature binds identity to a specific action
       and payload, not to the whole message.
 
@@ -871,9 +871,10 @@ Internet-Draft                  ApertoID                     August 2026
    ApertoID uses Ed25519 [RFC8032] as its mandatory-to-implement key
    type.  Ed25519 was chosen for compact key size (32 bytes / 43 Base64
    characters, unpadded), compact signature size (64 bytes / 86 Base64
-   characters, unpadded), fast verification (approximately 50
-   microseconds), and wide implementation support across all major
-   cryptographic libraries.
+   characters, unpadded), fast verification (the cost of verifying a
+   signature is negligible relative to the DNS lookup it accompanies),
+   and wide implementation support across all major cryptographic
+   libraries.
 
    The public key is published as the raw 32-byte Ed25519 public key
    encoded in unpadded Base64.  Implementations MUST support Ed25519.
@@ -888,7 +889,6 @@ Internet-Draft                  ApertoID                     August 2026
    least 7 days before expiration, and use TTL values of 3600 seconds (1
    hour) for Agent Declaration Records to balance caching efficiency
    with timely key rotation.
-
 
 
 
@@ -1461,6 +1461,15 @@ Internet-Draft                  ApertoID                     August 2026
    [RFC7208]  Kitterman, S., "Sender Policy Framework (SPF)", RFC 7208,
               April 2014, <https://www.rfc-editor.org/info/rfc7208>.
 
+   [RFC6698]  Hoffman, P. and J. Schlyter, "The DNS-Based Authentication
+              of Named Entities (DANE) Transport Layer Security (TLS)
+              Protocol: TLSA", RFC 6698, August 2012,
+              <https://www.rfc-editor.org/info/rfc6698>.
+
+   [RFC9421]  Backman, A., Richer, J., and M. Sporny, "HTTP Message
+              Signatures", RFC 9421, February 2024,
+              <https://www.rfc-editor.org/info/rfc9421>.
+
    [RFC9989]  Herr, T. and J. Levine, "Domain-based Message
               Authentication, Reporting, and Conformance (DMARC)",
               RFC 9989, May 2026,
@@ -1491,6 +1500,20 @@ Internet-Draft                  ApertoID                     August 2026
               <https://datatracker.ietf.org/doc/html/draft-klrc-aiagent-
               auth-03>.
 
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 27]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    [I-D.ietf-wimse-arch]
               Salowey, J., Rosomakho, Y., and H. Tschofenig, "Workload
               Identity in a Multi System Environment (WIMSE)
@@ -1505,14 +1528,6 @@ Internet-Draft                  ApertoID                     August 2026
               schwenkschuster-wimse-trust-domain-discovery-00, July
               2026, <https://datatracker.ietf.org/doc/html/draft-
               schwenkschuster-wimse-trust-domain-discovery-00>.
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 27]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
    [I-D.ferro-dnsop-apertodns-protocol]
               Ferro, A., "ApertoDNS Protocol: A Modern Dynamic DNS
@@ -1544,6 +1559,17 @@ A.1.  Basic Deployment
 
 A.2.  Third-Party Delegation
 
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 28]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    ; Policy: reject unauthorized agents
    _apertoid.example.com. 3600 IN TXT
      "v=APERTOID1; p=reject; rua=mailto:sec@example.com"
@@ -1559,16 +1585,6 @@ A.2.  Third-Party Delegation
      "v=APERTOID1; include=client42._apertoid.salesforce.com"
 
 A.3.  Emergency Revocation and Key Rotation
-
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 28]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
    ; Step 1: Immediately revoke compromised agent
    leadhunter._apertoid.example.com. 300 IN TXT
@@ -1598,12 +1614,25 @@ Appendix B.  Integration with Application-Layer Protocols
    have?" while ApertoID answers "is this agent genuinely authorized by
    this domain?"
 
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 29]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
 Appendix C.  Changes from -01
 
    This appendix is non-normative and summarizes the changes made in
-   this revision.  All four changes resolve ambiguities and gaps
-   identified while building a complete reference verifier from the -01
-   text.
+   this revision.  The normative and clarifying changes resolve
+   ambiguities and gaps identified while building a complete reference
+   verifier from the -01 text; an editorial change to the Introduction
+   is also noted.
 
    NORMATIVE BEHAVIOR CHANGES (a conforming -01 verifier may behave
    differently):
@@ -1618,14 +1647,6 @@ Appendix C.  Changes from -01
       include", one hop) disagreed by one level. -02 resolves this in
       favour of TWO hops, preserving the capability the -01 number
       already granted rather than reducing it (a one-hop reading would
-
-
-
-Ferro                   Expires 11 February 2027               [Page 29]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
       have removed something -01 permitted).  Safety at this depth is
       provided not by reducing it but by the other Section 8 limits, all
       unchanged: the per-hop revocation re-check below, circular-
@@ -1653,11 +1674,29 @@ Internet-Draft                  ApertoID                     August 2026
    *  URL TRAILING-SLASH NORMALIZATION (Section 11.4): the -01 phrase
       "trailing slashes are normalized" did not state how many slashes,
       which side, or whether root "/" equals an empty path. -02
+
+
+
+Ferro                   Expires 11 February 2027               [Page 30]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
       specifies it exactly: before the case-sensitive path comparison,
       all trailing "/" characters are removed from the path component of
       BOTH URLs (so "/x", "/x/" and "/x//" compare equal, and root "/"
       equals an empty path), while interior "/" characters are left
       unchanged.
+
+   EDITORIAL (no protocol change):
+
+   *  Removed the industry statistics and the impersonation example from
+      the Introduction; the motivating problem is now stated
+      qualitatively, without figures that a reader cannot verify from a
+      citable source.  Added reference entries for DANE (RFC 6698) and
+      HTTP Message Signatures (RFC 9421), which the Comparison section
+      had cited by number only, and stated Ed25519 verification cost
+      qualitatively rather than with a specific timing.
 
    See also the companion [APERTOID-SIG], which in its -02 adds the
    handling of a signed request to a keyless ("url"-only) agent,
@@ -1675,13 +1714,6 @@ Appendix D.  Changes from -00
       characters); the "=" padding character was removed from
       BASE64CHAR.
 
-
-
-Ferro                   Expires 11 February 2027               [Page 30]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    *  Corrected the "label" production: "ldh-label" is now "alnum"-first
       (a leading digit is permitted), and an "underscore-label"
       alternative was added so underscore-scoped names such as
@@ -1696,12 +1728,15 @@ Internet-Draft                  ApertoID                     August 2026
       known tags are a "permerror"; and that "pk" may appear without
       "k".
 
-   *  Corrected three factual claims in the Introduction: the non-human-
-      to-human identity ratio is scoped as up to 144:1 in cloud-native
-      environments; the proportion of organizations lacking AI identity
-      controls is 68 percent (CyberArk 2025); and the browser-
-      impersonation example is stated as behavior only, without
-      characterizing any litigation outcome.
+   *  Revised three factual claims in the Introduction for accuracy and
+      sourcing (industry statistics and an impersonation example).
+
+
+
+Ferro                   Expires 11 February 2027               [Page 31]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
    *  Regenerated all example keys and signatures as real, reproducible
       Ed25519 values; aligned the "ldh-label" and signature-format
@@ -1733,4 +1768,25 @@ Author's Address
 
 
 
-Ferro                   Expires 11 February 2027               [Page 31]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 32]
