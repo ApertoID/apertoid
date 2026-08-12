@@ -133,7 +133,7 @@ Internet-Draft                  ApertoID                     August 2026
      A.2.  Third-Party Delegation  . . . . . . . . . . . . . . . . .  28
      A.3.  Emergency Revocation and Key Rotation . . . . . . . . . .  29
    Appendix B.  Integration with Application-Layer Protocols . . . .  29
-   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  30
+   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  29
    Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  31
    Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  32
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  32
@@ -1614,10 +1614,10 @@ Appendix B.  Integration with Application-Layer Protocols
    have?" while ApertoID answers "is this agent genuinely authorized by
    this domain?"
 
+Appendix C.  Changes from -01
 
-
-
-
+   This appendix is non-normative and summarizes the changes made in
+   this revision.
 
 
 
@@ -1626,54 +1626,54 @@ Ferro                   Expires 11 February 2027               [Page 29]
 Internet-Draft                  ApertoID                     August 2026
 
 
-Appendix C.  Changes from -01
-
-   This appendix is non-normative and summarizes the changes made in
-   this revision.  The normative and clarifying changes resolve
-   ambiguities and gaps identified while building a complete reference
-   verifier from the -01 text; an editorial change to the Introduction
-   is also noted.
-
-   NORMATIVE BEHAVIOR CHANGES (a conforming -01 verifier may behave
+   Normative changes (a verifier conforming to -01 may behave
    differently):
 
-   *  DELEGATION LIMIT DISAMBIGUATED (Section 8): the delegation limit
-      is now stated unambiguously as "a verifier MUST follow at most TWO
-      include= delegations (the original record plus up to two delegated
-      targets); a chain requiring a third include hop results in
-      temperror".  The -01 text said "maximum delegation depth is 2
-      (i.e., the original record plus one level of include)", where the
-      number "2" (two hops) and the parenthetical ("one level of
-      include", one hop) disagreed by one level. -02 resolves this in
-      favour of TWO hops, preserving the capability the -01 number
-      already granted rather than reducing it (a one-hop reading would
-      have removed something -01 permitted).  Safety at this depth is
-      provided not by reducing it but by the other Section 8 limits, all
-      unchanged: the per-hop revocation re-check below, circular-
-      reference detection, and the 10-query total-lookup cap.  The
-      numeric depth is stated only in Section 8; the Section 11.2
-      algorithm refers to Section 8 rather than repeating a number, so
-      the two cannot drift.  (An implementer who read -01 as one hop
-      will now allow two; hence this is listed as a behavior change.)
+   *  Delegation limit (Section 8).  The limit on "include" delegation
+      is stated unambiguously: a verifier follows at most two "include"
+      delegations (the original record plus up to two delegated
+      targets), and a chain requiring a third hop yields "temperror".
+      The limit is now stated only in Section 8; the Section 11.2
+      algorithm refers to it rather than restating a number.
 
-   *  REVOCATION OF DELEGATED TARGETS (Sections 8 and 11.2): the
-      revocation check (Section 10.1) MUST now be applied to EACH record
-      resolved through an "include" reference, not only the original
-      Agent Declaration Record.  The -01 algorithm checked
-      "status=revoked" only at step 7 (the origin) before following
-      "include" at step 8, leaving the case where a delegated third-
-      party record is itself revoked unspecified; such a revocation was
-      not honored as a revocation. -02 makes a revoked record anywhere
-      in the delegation chain stop the chain with result "revoked".
-      This closes a security gap: a third party can now revoke its own
-      delegated agent and have that revocation enforced.
+   *  Revocation across delegation (Sections 8 and 11.2).  The
+      "status=revoked" check now applies to every record resolved
+      through an "include" reference, not only the original record; a
+      revoked record anywhere in a delegation chain makes the agent
+      unauthorized and stops the chain.
 
-   CLARIFICATIONS (no conforming behavior change intended; the -01 text
-   was under-specified):
+   Clarifications (no change in conforming behavior intended):
 
-   *  URL TRAILING-SLASH NORMALIZATION (Section 11.4): the -01 phrase
-      "trailing slashes are normalized" did not state how many slashes,
-      which side, or whether root "/" equals an empty path. -02
+   *  URL matching (Section 11.4).  Trailing-slash normalization is
+      specified exactly: trailing "/" characters are removed from the
+      path of both URLs before the case-sensitive comparison, so "/x",
+      "/x/", and "/x//" compare equal and a root path equals an empty
+      path; interior slashes are unchanged.
+
+   *  Delegation abuse (Section 13.4).  The security consideration is
+      aligned with Section 8: it references the delegation limit rather
+      than restating it, attributes the mitigation to the combination of
+      that limit, cycle detection, and per-hop revocation re-checking,
+      and states the correct result values ("temperror" for a limit or
+      cycle violation, "revoked" for a revoked record in the chain).
+
+   New material:
+
+   *  Applicability (new section).  States where ApertoID is and is not
+      the appropriate mechanism: it fits open-web agent identity where
+      parties share no prior trust configuration and the publishing side
+      operates only DNS; it is not the mechanism where an issuance-based
+      system already establishes trust between the parties, where per-
+      action authorization is required, where full message integrity is
+      required, or where DNS is not an acceptable trust anchor.
+
+   *  Threat Model and Non-Goals (new subsection of Section 13).
+      Consolidates the residual threats: a hostile or compromised
+      resolver, registrar compromise and domain takeover, domain expiry
+      and re-registration, and a hostile but legitimately declared
+      agent.  It points to the DNSSEC and authorization-versus-identity
+      considerations rather than repeating them.
+
 
 
 
@@ -1682,26 +1682,34 @@ Ferro                   Expires 11 February 2027               [Page 30]
 Internet-Draft                  ApertoID                     August 2026
 
 
-      specifies it exactly: before the case-sensitive path comparison,
-      all trailing "/" characters are removed from the path component of
-      BOTH URLs (so "/x", "/x/" and "/x//" compare equal, and root "/"
-      equals an empty path), while interior "/" characters are left
-      unchanged.
+   Comparison with existing approaches (Section 2):
 
-   EDITORIAL (no protocol change):
+   *  The description of [I-D.klrc-aiagent-auth] is corrected to
+      describe its actual scope and its relationship to ApertoID.
 
-   *  Removed the industry statistics and the impersonation example from
-      the Introduction; the motivating problem is now stated
-      qualitatively, without figures that a reader cannot verify from a
-      citable source.  Added reference entries for DANE (RFC 6698) and
-      HTTP Message Signatures (RFC 9421), which the Comparison section
-      had cited by number only, and stated Ed25519 verification cost
-      qualitatively rather than with a specific timing.
+   *  Entries are added for WIMSE workload identity
+      [I-D.ietf-wimse-arch] and for HTTPS well-known trust discovery
+      [I-D.schwenkschuster-wimse-trust-domain-discovery], each
+      distinguishing it from ApertoID by how trust is established.
 
-   See also the companion [APERTOID-SIG], which in its -02 adds the
-   handling of a signed request to a keyless ("url"-only) agent,
-   consistent with this document's Section 7.3 and Section 11.2 (the key
-   check is skipped when no "pk" is published).
+   *  The entry comparing ApertoID to the OWASP Agent Name Service is
+      removed, as its claims could not be verified against a citable
+      source.
+
+   Editorial (no protocol change):
+
+   *  The Introduction now states the problem qualitatively, without
+      figures that cannot be verified from a citable source.
+
+   *  The description of Ed25519 verification cost is stated
+      qualitatively rather than as a specific timing.
+
+   *  Reference entries are corrected against the canonical IETF records
+      (full author lists, current document revisions, and published
+      titles), and entries for DANE (RFC 6698) and HTTP Message
+      Signatures (RFC 9421), previously cited by number only, are added.
+      The companion reference to [APERTOID-SIG] is updated to its -02
+      revision.
 
 Appendix D.  Changes from -00
 
@@ -1722,6 +1730,14 @@ Appendix D.  Changes from -00
    *  Tightened the whitespace ("*WSP" around ";"), URI-CHAR (added "%";
       excluded ";"), and email-address (RFC 5321 dot-atom) productions.
 
+
+
+
+Ferro                   Expires 11 February 2027               [Page 31]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    *  Clarified that revocation records ("status=revoked") are exempt
       from the "url"-or-"include" requirement; that record type is
       determined by the DNS query name, not by content; that duplicate
@@ -1730,13 +1746,6 @@ Appendix D.  Changes from -00
 
    *  Revised three factual claims in the Introduction for accuracy and
       sourcing (industry statistics and an impersonation example).
-
-
-
-Ferro                   Expires 11 February 2027               [Page 31]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
    *  Regenerated all example keys and signatures as real, reproducible
       Ed25519 values; aligned the "ldh-label" and signature-format
@@ -1763,15 +1772,6 @@ Author's Address
    Italy
    Email: irn@irn3.com
    URI:   https://github.com/ApertoID
-
-
-
-
-
-
-
-
-
 
 
 

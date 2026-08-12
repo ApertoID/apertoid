@@ -95,7 +95,7 @@ Table of Contents
    Appendix A.  Full Request/Response Example  . . . . . . . . . . .  18
    Appendix B.  Implementation Guidance  . . . . . . . . . . . . . .  20
    Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  22
-   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  22
+   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  23
    Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  23
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  23
 
@@ -1183,24 +1183,56 @@ Appendix C.  Changes from -01
    This appendix is non-normative and summarizes the changes made in
    this revision.
 
-   NEW NORMATIVE CASE (the -01 algorithm did not cover it):
+   Normative changes (a verifier conforming to -01 may behave
+   differently):
 
-   *  KEYLESS ("url"-only) AGENT (Section 4, new step 6a): -01 steps 5
-      and 8 assumed the resolved DNS record always carries a "pk"
-      ("Extract pk= ... and check exp=", "verify ... using pk= from DNS
-      record").  But a "url"-only Agent Declaration Record is legal per
-      [APERTOID-DNS] Section 7.3 (the early deployment stage in which an
-      agent is authorized by URL before a key is published), and -01
-      gave no verdict for a signed request to such an agent. -02 adds
-      step 6a: when DNS verification passed but the resolved record has
-      no "pk", the verifier MUST NOT cryptographically verify the
-      signature, MUST NOT report a cryptographically-verified result,
-      and returns the DNS-layer "pass" (authorized on the URL match
-      alone).  The "pass" result value now states this distinction, and
-      implementations SHOULD expose to the caller whether the signature
-      was cryptographically verified.  This aligns with [APERTOID-DNS],
-      where the key check is optional (skipped when no "pk" is
-      published).
+   *  Keyless (url-only) agent (Section 4, new step 6a).  The
+      verification procedure now specifies the case where the resolved
+      Agent Declaration Record carries no "pk" (a url-only agent, legal
+      per [APERTOID-DNS]): the signature is not cryptographically
+      verified, no cryptographically-verified result is reported, and
+      the DNS-layer "pass" is returned on URL authorization alone.  The
+      "pass" result value is updated to state this distinction, and
+      implementations are advised to expose to the caller whether the
+      signature was cryptographically verified.
+
+   *  Optional body-size check (Section 4, new step 6b; Section 4.1).  A
+      verifier that imposes a maximum request-body size (recommended in
+      Section 6.7) rejects an over-large body with the result
+      "body_too_large" before the body is hashed.  The check and its
+      result value are optional and arise only for a verifier that
+      imposes such a limit.
+
+   New material:
+
+   *  Threat Model and Non-Goals (new subsection of Section 6).
+      Consolidates the assumptions and residual threats of request
+      signing: reliance on TLS, body-size and hashing cost, what the
+      nonce cache does and does not bound, the authorization-only nature
+      of a url-only result, and clock-source manipulation; followed by
+      an explicit list of non-goals (recipient/audience binding, full
+      message and header integrity, algorithm agility, normalizing
+      intermediaries and CONNECT, and streaming or chunked bodies).
+
+   Editorial (no protocol change):
+
+   *  The implementation note in Appendix B is corrected to describe
+      only the reference implementation that exists.
+
+   *  Reference entries are corrected against the canonical IETF records
+      (full author lists and published titles), and the companion
+      reference to [APERTOID-DNS] is updated to its -02 revision.
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 22]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
 
 Appendix D.  Changes from -00
 
@@ -1225,15 +1257,6 @@ Appendix D.  Changes from -00
       independently of HTTP version (origin-form, no normalization) and
       handled OPTIONS "*" and CONNECT.
 
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 22]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
    *  Reordered verification so the nonce is inserted into the replay
       cache only after the signature verifies (with expiry tracking the
       configurable window), preventing nonce-burn and cache-flood denial
@@ -1257,6 +1280,15 @@ Acknowledgements
    AI agent identity verification with DNS-based key discovery.
 
 Author's Address
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 23]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
 
    Andrea Ferro
    ApertoID
@@ -1285,4 +1317,28 @@ Author's Address
 
 
 
-Ferro                   Expires 11 February 2027               [Page 23]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 24]
