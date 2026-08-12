@@ -64,7 +64,7 @@ Internet-Draft             ApertoID-Signature                August 2026
 
 Table of Contents
 
-   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
      1.1.  Relationship to HTTP Message Signatures . . . . . . . . .   3
      1.2.  Requirements Language . . . . . . . . . . . . . . . . . .   4
    2.  The ApertoID-Signature Header Field . . . . . . . . . . . . .   4
@@ -85,18 +85,34 @@ Table of Contents
      6.4.  Nonce Cache Requirements  . . . . . . . . . . . . . . . .  13
      6.5.  Private Key Protection  . . . . . . . . . . . . . . . . .  14
      6.6.  Signature Stripping . . . . . . . . . . . . . . . . . . .  14
-   7.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .  14
-   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  14
-     8.1.  HTTP Header Field Registration  . . . . . . . . . . . . .  14
-   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  15
-     9.1.  Normative References  . . . . . . . . . . . . . . . . . .  15
-     9.2.  Informative References  . . . . . . . . . . . . . . . . .  16
-   Appendix A.  Full Request/Response Example  . . . . . . . . . . .  16
-   Appendix B.  Implementation Guidance  . . . . . . . . . . . . . .  17
-   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  19
-   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  19
-   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  20
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  20
+     6.7.  Threat Model and Non-Goals  . . . . . . . . . . . . . . .  14
+   7.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .  17
+   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  17
+     8.1.  HTTP Header Field Registration  . . . . . . . . . . . . .  17
+   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  17
+     9.1.  Normative References  . . . . . . . . . . . . . . . . . .  17
+     9.2.  Informative References  . . . . . . . . . . . . . . . . .  18
+   Appendix A.  Full Request/Response Example  . . . . . . . . . . .  19
+   Appendix B.  Implementation Guidance  . . . . . . . . . . . . . .  20
+   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  22
+   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  22
+   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  23
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  23
+
+
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027                [Page 2]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
 
 1.  Introduction
 
@@ -106,14 +122,6 @@ Table of Contents
    only establishes which key belongs to which agent — it does not prove
    that a particular HTTP request was made by the holder of that key,
    nor does it bind the signature to the specific action being
-
-
-
-Ferro                   Expires 11 February 2027                [Page 2]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
    performed.
 
    This document defines the ApertoID-Signature HTTP header field, which
@@ -153,14 +161,6 @@ Internet-Draft             ApertoID-Signature                August 2026
       middleware in under 100 lines of code in any language, without
       requiring an RFC 9421 library.
 
-   However, ApertoID-Signature follows RFC 9421's principle of binding
-   signatures to specific request components.  The signing input
-   includes the HTTP method and request target (path + query), ensuring
-   that a signature is valid only for the specific action it was created
-   for.
-
-
-
 
 
 
@@ -169,6 +169,12 @@ Ferro                   Expires 11 February 2027                [Page 3]
 
 Internet-Draft             ApertoID-Signature                August 2026
 
+
+   However, ApertoID-Signature follows RFC 9421's principle of binding
+   signatures to specific request components.  The signing input
+   includes the HTTP method and request target (path + query), ensuring
+   that a signature is valid only for the specific action it was created
+   for.
 
 1.2.  Requirements Language
 
@@ -196,12 +202,6 @@ Internet-Draft             ApertoID-Signature                August 2026
    separator is optional whitespace (OWS), not a mandatory single space.
 
 2.2.  ABNF Definition
-
-
-
-
-
-
 
 
 
@@ -748,6 +748,161 @@ Internet-Draft             ApertoID-Signature                August 2026
    policy specifies "p=reject", the verifier SHOULD reject unsigned
    requests from agents claiming to represent that domain.
 
+6.7.  Threat Model and Non-Goals
+
+   This subsection consolidates what ApertoID-Signature does and does
+   not defend against, so that deployers can reason about residual risk.
+   Several considerations are described in more detail elsewhere and are
+   not repeated here: cross-service replay and the absence of recipient
+   binding (Section 6.1); the fact that HTTP headers other than the
+   method and target are not signed (Section 6.2); header stripping of
+   unsigned requests (Section 6.6); nonce-cache requirements
+   (Section 6.4); clock synchronization (Section 6.3); and private-key
+   protection (Section 6.5).  Two further limitations are stated where
+   they arise: the request target is signed with NO normalization, so
+   deployments with normalizing intermediaries -- and CONNECT requests
+   -- are out of scope (Section 3.1); and a resolved record that carries
+   no "pk" (a url-only agent) is handled by the keyless case of the
+   verification procedure (Section 4).  The boundary between
+   authorization-level and identity-level assurance, and the handling of
+   agent key compromise and DNS record TTLs, are defined in
+   [APERTOID-DNS].  The statements below draw these threads together and
+   add the assumptions specific to request signing.
+
+   TLS is a load-bearing assumption: ApertoID-Signature assumes the
+   request is carried over HTTPS, and MUST NOT be used over plaintext
+   HTTP ([RFC9110]).  The signature itself does NOT bind the destination
+   host and does NOT cover HTTP headers, so TLS -- not the signature --
+   is what prevents two attacks in practice: an attacker cannot capture
+   a signature to replay to another host without compromising the
+   transport or the destination, and an attacker cannot modify unsigned
+   headers in transit.  This is an assumption the mechanism relies on,
+   not a property it provides.  If TLS is absent, terminated early (for
+
+
+
+Ferro                   Expires 11 February 2027               [Page 14]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
+
+   example at an untrusted intermediary), or successfully intercepted,
+   both protections are lost: a captured signature becomes replayable to
+   other hosts within the timestamp window (see Section 6.1), and the
+   unsigned portions of the request become modifiable in transit (see
+   Section 6.2).
+
+   Body-size and hashing cost: to reconstruct the signing input, the
+   verifier must compute a SHA-256 over the entire request body, and it
+   does so before the signature can be checked (Section 3.1).  An
+   oversized body therefore imposes hashing work regardless of whether
+   the signature would ultimately verify, which an attacker can exploit
+   as a denial-of-service vector.  Verifiers SHOULD impose a maximum
+   request-body size and reject a request that exceeds it BEFORE hashing
+   the body.  The reference implementation provides an optional maximum-
+   body-size parameter for exactly this, returning a distinct result
+   before the hash is computed.  Where a deployment already bounds
+   request size upstream (for example at a web server, reverse proxy, or
+   API gateway), that bound serves the same purpose and no additional
+   check is required in the verifier.
+
+   Nonce cache -- what is and is not bounded: the replay-protection
+   nonce cache (Section 6.4) is mutated only after a signature verifies.
+   A request whose signature does not verify (including a malformed,
+   expired, or over-large request) never inserts its nonce into the
+   cache; the nonce is checked read-only until the signature is
+   confirmed valid.  Consequently an unauthenticated request cannot burn
+   a victim's nonce nor flood the cache -- state is created only by
+   authenticated requests.  What is NOT bounded by this specification is
+   the size of the cache: it has only an age bound (entries need only be
+   retained for the timestamp validity window, after which they may be
+   evicted), not a count or memory bound.  A verifier receiving a high
+   volume of legitimate signed requests will hold one cache entry per
+   request for the duration of the window; deployers SHOULD provision
+   the cache for a window's worth of legitimate traffic and MAY apply
+   their own eviction policy beyond the age bound.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 15]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
+
+   A url-only agent yields authorization, not proof of the requester:
+   when the resolved Agent Declaration Record carries no "pk", the
+   verification procedure returns a result based on the DNS-layer URL
+   authorization alone and does not cryptographically verify any
+   signature (the keyless case, Section 4).  Symmetric to the
+   authorization-versus-identity boundary in [APERTOID-DNS], such a
+   result MUST NOT be treated as proof that the requester holds the
+   agent's private key: an attacker able to reach, or to proxy requests
+   through, the authorized URL is not excluded.  Implementations SHOULD
+   surface this distinction to the caller so that a URL-authorized
+   result is not mistaken for a cryptographically-verified one; the
+   reference implementation exposes a per-result flag indicating whether
+   the signature was cryptographically verified.
+
+   Clock-source manipulation: the timestamp validity window bounds the
+   lifetime of a captured signature, but only relative to the verifier's
+   own clock.  Beyond the operational clock-skew considerations of
+   Section 6.3, an attacker who can influence the verifier's notion of
+   time -- for example by spoofing NTP [RFC5905] -- can shift the
+   window, or hold it open, and thereby extend the useful lifetime of an
+   intercepted signature.  Verifiers SHOULD obtain time from an
+   authenticated or otherwise trusted source.
+
+   Non-goals: the following are deliberately outside the scope of
+   ApertoID-Signature, so that the boundary is visible in one place:
+
+   *  Recipient/audience binding.  A signature is not bound to a
+      specific destination service; a normative audience binding is
+      deferred to a future revision (see Section 6.1).
+
+   *  Full message integrity and header integrity.  The signature covers
+      only the identity metadata, method, target, and body hash; it is
+      not a general-purpose message-integrity mechanism.  Use TLS for
+      transit integrity and, where header integrity is required, HTTP
+      Message Signatures [RFC9421] in addition (see Section 6.2).
+
+   *  Algorithm agility.  Only Ed25519 is defined, deliberately: there
+      is no algorithm negotiation and therefore no downgrade negotiation
+      to attack.
+
+   *  Deployments with normalizing intermediaries, and CONNECT requests.
+      The target is signed exactly as sent; an intermediary that
+      normalizes it invalidates the signature, and CONNECT is not
+      supported (Section 3.1).
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 16]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
+
+   *  Streaming or chunked bodies where the complete body is not
+      available before verification.  The signing input requires a hash
+      over the full body (Section 3.1), so a body that cannot be fully
+      read before the verification decision is out of scope.
+
 7.  Privacy Considerations
 
    The ApertoID-Signature header reveals the agent's domain (d=) and
@@ -779,13 +934,6 @@ Internet-Draft             ApertoID-Signature                August 2026
 
    Structured Type:  N/A
 
-
-
-Ferro                   Expires 11 February 2027               [Page 14]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
    Reference:  [this document]
 
 9.  References
@@ -795,6 +943,16 @@ Internet-Draft             ApertoID-Signature                August 2026
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", RFC 2119, March 1997,
               <https://www.rfc-editor.org/info/rfc2119>.
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 17]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
 
    [RFC4648]  Josefsson, S., "The Base16, Base32, and Base64 Data
               Encodings", RFC 4648, October 2006,
@@ -835,13 +993,6 @@ Internet-Draft             ApertoID-Signature                August 2026
               <https://datatracker.ietf.org/doc/html/draft-ferro-dnsop-
               apertoid-02>.
 
-
-
-Ferro                   Expires 11 February 2027               [Page 15]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
 9.2.  Informative References
 
    [RFC5905]  Mills, D., "Network Time Protocol Version 4: Protocol and
@@ -851,6 +1002,13 @@ Internet-Draft             ApertoID-Signature                August 2026
    [RFC6376]  Crocker, D., "DomainKeys Identified Mail (DKIM)
               Signatures", RFC 6376, September 2011,
               <https://www.rfc-editor.org/info/rfc6376>.
+
+
+
+Ferro                   Expires 11 February 2027               [Page 18]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
 
    [RFC9421]  Backman, A., "HTTP Message Signatures", RFC 9421, February
               2024, <https://www.rfc-editor.org/info/rfc9421>.
@@ -890,14 +1048,6 @@ Appendix A.  Full Request/Response Example
    leadhunter\n
    1711100000\n
    a1b2c3d4e5f6\n
-
-
-
-Ferro                   Expires 11 February 2027               [Page 16]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
    POST\n
    /mcp/tools/search\n
    628e22adadb97ae8d0de9bbf50b3556d252763f2d5710c2c6b34\
@@ -907,6 +1057,14 @@ Internet-Draft             ApertoID-Signature                August 2026
     body, shown wrapped with a trailing "\" continuation;
     it is one line followed by a single LF. The full signing
     input is 135 bytes and ends with 0x0A.)
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 19]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
 
    === Verifier checks ===
 
@@ -949,7 +1107,17 @@ Appendix B.  Implementation Guidance
 
 
 
-Ferro                   Expires 11 February 2027               [Page 17]
+
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 20]
 
 Internet-Draft             ApertoID-Signature                August 2026
 
@@ -1005,7 +1173,7 @@ def verify_request(request):
 
 
 
-Ferro                   Expires 11 February 2027               [Page 18]
+Ferro                   Expires 11 February 2027               [Page 21]
 
 Internet-Draft             ApertoID-Signature                August 2026
 
@@ -1061,7 +1229,7 @@ Appendix D.  Changes from -00
 
 
 
-Ferro                   Expires 11 February 2027               [Page 19]
+Ferro                   Expires 11 February 2027               [Page 22]
 
 Internet-Draft             ApertoID-Signature                August 2026
 
@@ -1117,4 +1285,4 @@ Author's Address
 
 
 
-Ferro                   Expires 11 February 2027               [Page 20]
+Ferro                   Expires 11 February 2027               [Page 23]
