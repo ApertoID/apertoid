@@ -72,40 +72,40 @@ Table of Contents
    1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
      1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   4
    2.  Comparison with Existing Approaches . . . . . . . . . . . . .   4
-   3.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . .   5
-   4.  Protocol Overview . . . . . . . . . . . . . . . . . . . . . .   6
-   5.  Record Syntax . . . . . . . . . . . . . . . . . . . . . . . .   7
-     5.1.  ABNF Definition . . . . . . . . . . . . . . . . . . . . .   7
-   6.  Policy Record . . . . . . . . . . . . . . . . . . . . . . . .   9
-     6.1.  Record Location . . . . . . . . . . . . . . . . . . . . .   9
-     6.2.  Example . . . . . . . . . . . . . . . . . . . . . . . . .   9
-     6.3.  Policy Tags . . . . . . . . . . . . . . . . . . . . . . .  10
-   7.  Agent Declaration Record  . . . . . . . . . . . . . . . . . .  10
-     7.1.  Record Location . . . . . . . . . . . . . . . . . . . . .  10
-     7.2.  Example . . . . . . . . . . . . . . . . . . . . . . . . .  10
-     7.3.  Agent Declaration Tags  . . . . . . . . . . . . . . . . .  11
-     7.4.  Record Size Considerations  . . . . . . . . . . . . . . .  12
-   8.  Delegation  . . . . . . . . . . . . . . . . . . . . . . . . .  12
-   9.  Key Publication . . . . . . . . . . . . . . . . . . . . . . .  13
-     9.1.  Ed25519 Key Format  . . . . . . . . . . . . . . . . . . .  14
-     9.2.  Key Lifecycle . . . . . . . . . . . . . . . . . . . . . .  14
-   10. Revocation  . . . . . . . . . . . . . . . . . . . . . . . . .  14
-     10.1.  Immediate Revocation . . . . . . . . . . . . . . . . . .  14
-     10.2.  Key Rotation . . . . . . . . . . . . . . . . . . . . . .  15
-   11. Verification Procedure  . . . . . . . . . . . . . . . . . . .  15
-     11.1.  Verification Inputs  . . . . . . . . . . . . . . . . . .  16
-     11.2.  Verification Algorithm . . . . . . . . . . . . . . . . .  16
-     11.3.  Result Values  . . . . . . . . . . . . . . . . . . . . .  17
-     11.4.  URL Matching Rules . . . . . . . . . . . . . . . . . . .  18
-   12. Operational Considerations  . . . . . . . . . . . . . . . . .  18
-     12.1.  Deployment Guidance  . . . . . . . . . . . . . . . . . .  18
-     12.2.  CDN and Reverse Proxy Interaction  . . . . . . . . . . .  18
-     12.3.  TTL Recommendations  . . . . . . . . . . . . . . . . . .  19
-   13. Security Considerations . . . . . . . . . . . . . . . . . . .  19
-     13.1.  Authorization vs. Identity Verification  . . . . . . . .  19
-     13.2.  DNSSEC . . . . . . . . . . . . . . . . . . . . . . . . .  19
-     13.3.  Key Compromise . . . . . . . . . . . . . . . . . . . . .  20
-     13.4.  Delegation Abuse . . . . . . . . . . . . . . . . . . . .  20
+   3.  Applicability . . . . . . . . . . . . . . . . . . . . . . . .   6
+     3.1.  When ApertoID Applies . . . . . . . . . . . . . . . . . .   6
+     3.2.  When ApertoID Does Not Apply  . . . . . . . . . . . . . .   7
+   4.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . .   8
+   5.  Protocol Overview . . . . . . . . . . . . . . . . . . . . . .   8
+   6.  Record Syntax . . . . . . . . . . . . . . . . . . . . . . . .   9
+     6.1.  ABNF Definition . . . . . . . . . . . . . . . . . . . . .   9
+   7.  Policy Record . . . . . . . . . . . . . . . . . . . . . . . .  11
+     7.1.  Record Location . . . . . . . . . . . . . . . . . . . . .  11
+     7.2.  Example . . . . . . . . . . . . . . . . . . . . . . . . .  12
+     7.3.  Policy Tags . . . . . . . . . . . . . . . . . . . . . . .  12
+   8.  Agent Declaration Record  . . . . . . . . . . . . . . . . . .  13
+     8.1.  Record Location . . . . . . . . . . . . . . . . . . . . .  13
+     8.2.  Example . . . . . . . . . . . . . . . . . . . . . . . . .  13
+     8.3.  Agent Declaration Tags  . . . . . . . . . . . . . . . . .  13
+     8.4.  Record Size Considerations  . . . . . . . . . . . . . . .  15
+   9.  Delegation  . . . . . . . . . . . . . . . . . . . . . . . . .  15
+   10. Key Publication . . . . . . . . . . . . . . . . . . . . . . .  16
+     10.1.  Ed25519 Key Format . . . . . . . . . . . . . . . . . . .  16
+     10.2.  Key Lifecycle  . . . . . . . . . . . . . . . . . . . . .  16
+   11. Revocation  . . . . . . . . . . . . . . . . . . . . . . . . .  17
+     11.1.  Immediate Revocation . . . . . . . . . . . . . . . . . .  17
+     11.2.  Key Rotation . . . . . . . . . . . . . . . . . . . . . .  17
+   12. Verification Procedure  . . . . . . . . . . . . . . . . . . .  18
+     12.1.  Verification Inputs  . . . . . . . . . . . . . . . . . .  18
+     12.2.  Verification Algorithm . . . . . . . . . . . . . . . . .  18
+     12.3.  Result Values  . . . . . . . . . . . . . . . . . . . . .  19
+     12.4.  URL Matching Rules . . . . . . . . . . . . . . . . . . .  20
+   13. Operational Considerations  . . . . . . . . . . . . . . . . .  20
+     13.1.  Deployment Guidance  . . . . . . . . . . . . . . . . . .  20
+     13.2.  CDN and Reverse Proxy Interaction  . . . . . . . . . . .  20
+     13.3.  TTL Recommendations  . . . . . . . . . . . . . . . . . .  21
+   14. Security Considerations . . . . . . . . . . . . . . . . . . .  21
+     14.1.  Authorization vs. Identity Verification  . . . . . . . .  21
 
 
 
@@ -114,26 +114,29 @@ Ferro                   Expires 11 February 2027                [Page 2]
 Internet-Draft                  ApertoID                     August 2026
 
 
-     13.5.  Agent Enumeration  . . . . . . . . . . . . . . . . . . .  20
-     13.6.  DNS Amplification  . . . . . . . . . . . . . . . . . . .  20
-     13.7.  Threat Model and Non-Goals . . . . . . . . . . . . . . .  20
-   14. Privacy Considerations  . . . . . . . . . . . . . . . . . . .  22
-   15. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  22
-     15.1.  Underscore-Scoped Domain Name Registration . . . . . . .  22
-     15.2.  ApertoID Agent Type Registry . . . . . . . . . . . . . .  23
-     15.3.  ApertoID Key Type Registry . . . . . . . . . . . . . . .  23
-   16. References  . . . . . . . . . . . . . . . . . . . . . . . . .  23
-     16.1.  Normative References . . . . . . . . . . . . . . . . . .  23
-     16.2.  Informative References . . . . . . . . . . . . . . . . .  24
-   Appendix A.  Complete Examples  . . . . . . . . . . . . . . . . .  25
-     A.1.  Basic Deployment  . . . . . . . . . . . . . . . . . . . .  26
-     A.2.  Third-Party Delegation  . . . . . . . . . . . . . . . . .  26
-     A.3.  Emergency Revocation and Key Rotation . . . . . . . . . .  26
-   Appendix B.  Integration with Application-Layer Protocols . . . .  26
-   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  27
-   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  28
-   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  29
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  29
+     14.2.  DNSSEC . . . . . . . . . . . . . . . . . . . . . . . . .  21
+     14.3.  Key Compromise . . . . . . . . . . . . . . . . . . . . .  22
+     14.4.  Delegation Abuse . . . . . . . . . . . . . . . . . . . .  22
+     14.5.  Agent Enumeration  . . . . . . . . . . . . . . . . . . .  22
+     14.6.  DNS Amplification  . . . . . . . . . . . . . . . . . . .  22
+     14.7.  Threat Model and Non-Goals . . . . . . . . . . . . . . .  22
+   15. Privacy Considerations  . . . . . . . . . . . . . . . . . . .  24
+   16. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  24
+     16.1.  Underscore-Scoped Domain Name Registration . . . . . . .  24
+     16.2.  ApertoID Agent Type Registry . . . . . . . . . . . . . .  25
+     16.3.  ApertoID Key Type Registry . . . . . . . . . . . . . . .  25
+   17. References  . . . . . . . . . . . . . . . . . . . . . . . . .  25
+     17.1.  Normative References . . . . . . . . . . . . . . . . . .  25
+     17.2.  Informative References . . . . . . . . . . . . . . . . .  26
+   Appendix A.  Complete Examples  . . . . . . . . . . . . . . . . .  28
+     A.1.  Basic Deployment  . . . . . . . . . . . . . . . . . . . .  28
+     A.2.  Third-Party Delegation  . . . . . . . . . . . . . . . . .  28
+     A.3.  Emergency Revocation and Key Rotation . . . . . . . . . .  28
+   Appendix B.  Integration with Application-Layer Protocols . . . .  29
+   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  29
+   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  30
+   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  31
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  31
 
 1.  Introduction
 
@@ -159,9 +162,6 @@ Internet-Draft                  ApertoID                     August 2026
    could send email claiming any sender address.  The solution was a
    layered DNS-based authentication framework: SPF [RFC7208] declared
    authorized sending IPs, DKIM [RFC6376] provided cryptographic
-   signatures, and DMARC [RFC9989] unified them with enforcement
-   policies.  ApertoID applies the same proven architectural pattern to
-   AI agent identity.
 
 
 
@@ -169,6 +169,10 @@ Ferro                   Expires 11 February 2027                [Page 3]
 
 Internet-Draft                  ApertoID                     August 2026
 
+
+   signatures, and DMARC [RFC9989] unified them with enforcement
+   policies.  ApertoID applies the same proven architectural pattern to
+   AI agent identity.
 
    ApertoID is designed to complement, not replace, existing agent
    discovery mechanisms such as DNS-AID
@@ -210,13 +214,9 @@ Internet-Draft                  ApertoID                     August 2026
    replace them:
 
    DANE (RFC 6698)  DANE authenticates TLS certificates for servers via
-      TLSA DNS records.  However, DANE binds identity to a TLS endpoint
-      (server), not to an agent.  Multiple agents may share a server,
-      and a single agent may operate across multiple servers.  ApertoID
-      binds identity to the agent itself, independent of the underlying
-      TLS infrastructure.
 
-   DNS-AID (draft-mozleywilliams-dnsop-dnsaid)  DNS-AID provides DNS-
+
+
 
 
 
@@ -226,22 +226,34 @@ Ferro                   Expires 11 February 2027                [Page 4]
 Internet-Draft                  ApertoID                     August 2026
 
 
-      based discovery of agents associated with a domain using SVCB
-      records.  It answers "what agents does this domain have?" but does
-      not provide cryptographic identity binding or enforcement
-      policies.  ApertoID answers "is this specific agent genuinely
-      authorized by this domain?"  The two are complementary.
+      TLSA DNS records.  However, DANE binds identity to a TLS endpoint
+      (server), not to an agent.  Multiple agents may share a server,
+      and a single agent may operate across multiple servers.  ApertoID
+      binds identity to the agent itself, independent of the underlying
+      TLS infrastructure.
 
-   AIMS (draft-klrc-aiagent-auth)  AIMS proposes an agent authentication
-      framework composing SPIFFE, WIMSE, and OAuth 2.0.  It is designed
-      for intra-organization authentication but does not address cross-
-      domain trust bootstrapping via DNS.  ApertoID provides the DNS-
-      based trust anchor that frameworks like AIMS can build upon.
+   DNS-AID (draft-mozleywilliams-dnsop-dnsaid)  DNS-AID
+      [I-D.mozleywilliams-dnsop-dnsaid] provides DNS-based discovery of
+      agents associated with a domain, primarily using SVCB records (and
+      optionally DNSSEC and DANE TLSA records for endpoint security).
+      It answers "what agents does this domain have?"  Its cryptographic
+      material authenticates connection endpoints rather than binding an
+      identity to a specific agent, and it does not define domain-level
+      enforcement policies.  ApertoID answers "is this specific agent
+      genuinely authorized by this domain?" and pairs that with a policy
+      record.  The two are complementary.
 
-   ANS (OWASP Agent Name Service)  ANS is a centralized registry with
-      PKI-based identity.  ApertoID is fully decentralized, using
-      existing DNS infrastructure with no central registry, making it
-      deployable by any domain owner without third-party registration.
+   AI Agent Authentication and Authorization (draft-klrc-aiagent-
+   auth)  This work [I-D.klrc-aiagent-auth] describes best practices for
+      authenticating and authorizing AI agent interactions by composing
+      existing standards such as SPIFFE, WIMSE, and OAuth 2.0.  It
+      operates at the layer of credentials and authorization flows
+      between agents and services.  ApertoID operates at a different
+      layer: a DNS-published, domain-level declaration of which agents a
+      domain authorizes, verifiable by a party starting from only the
+      domain name.  A token-based framework of this kind can use an
+      ApertoID declaration as a domain-level anchor for the agents it
+      authenticates.
 
    HTTP Message Signatures (RFC 9421)  RFC 9421 provides a general-
       purpose HTTP signing framework.  ApertoID-Signature (defined in
@@ -252,7 +264,142 @@ Internet-Draft                  ApertoID                     August 2026
       complexity of RFC 9421's component identifiers and algorithm
       negotiation.
 
-3.  Terminology
+   WIMSE workload identity (draft-ietf-wimse-arch)  The WIMSE
+      architecture [I-D.ietf-wimse-arch] describes workload credentials
+      -- the Workload Identity Token and the Workload Identity
+      Certificate, defined in the companion WIMSE service-to-service
+      protocol -- whose identifiers are scoped within a trust domain;
+      the architecture states that the protocol for obtaining
+      credentials varies with deployment.  The primary difference from
+      ApertoID is how trust is established between the parties, not
+      whether the parties are in the same organization.  In WIMSE, a
+      relying party validates a credential using the trust anchors and
+
+
+
+Ferro                   Expires 11 February 2027                [Page 5]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
+      issuer configuration it holds for the credential's trust domain,
+      obtained through a secure mechanism.  In ApertoID, a relying party
+      starts from nothing but the domain name and reads the domain's
+      public DNS declaration, with no issuance step and no prior
+      configuration on either side.  The two are complementary: a
+      workload may hold a WIMSE credential for its identity within a
+      trust domain and, separately, be publicly declared by a domain via
+      ApertoID so that parties which share no trust configuration with
+      that domain can still verify the declaration.
+
+   HTTPS well-known trust discovery (draft-schwenkschuster-wimse-
+   trust-domain-discovery)  Trust-discovery mechanisms that derive a
+      location from a domain name and retrieve trust material over HTTPS
+      -- the WIMSE Trust Domain Discovery work
+      [I-D.schwenkschuster-wimse-trust-domain-discovery] is the current
+      example, retrieving a metadata document from a well-known URL
+      under the trust domain name and then a trust bundle from an
+      endpoint that the metadata names -- require the domain owner to
+      serve HTTPS content for that name and validate the TLS server
+      certificate against the Web PKI.  ApertoID requires only DNS
+      records and roots in DNS directly.  The trade-off cuts both ways:
+      retrieving trust material over HTTPS is not subject to the size
+      limits of DNS TXT records and does not depend on DNS caching
+      behavior, whereas DNS publication requires no server to be
+      operated and reuses existing zone administration.  Neither is
+      strictly better; they root trust in different infrastructures (the
+      Web PKI versus DNS).
+
+3.  Applicability
+
+   This section states where ApertoID is intended to be used, and where
+   it is not, so that a reader can decide early whether it fits their
+   deployment.
+
+3.1.  When ApertoID Applies
+
+   The design target is agent identity on the open web: a domain
+   publicly declaring which agents act on its behalf, verified by
+   parties that have no prior relationship with that domain.  ApertoID
+   fits when all of the following hold:
+
+   *  The relying party and the declaring domain have no pre-existing
+      federation, shared authority, or out-of-band trust configuration;
+      the relying party must be able to start from nothing but the
+      domain name.
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027                [Page 6]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
+   *  Neither party operates workload-identity infrastructure -- no
+      token issuance service, no authorization server, no SPIFFE or
+      WIMSE deployment -- and does not wish to adopt one for this
+      purpose.
+
+   *  The declaring domain can publish DNS records and nothing else: no
+      HTTPS endpoint, no running server, and no hosted resource is
+      required for the protocol itself.  (An Agent Declaration Record's
+      "url" names the agent's own endpoint; it is a value compared
+      during verification, not infrastructure the declaring domain must
+      operate for ApertoID.)
+
+   *  Verification must be possible from a DNS query plus a local
+      signature check, with no call to any authorization service or
+      other authority.
+
+   This is the same shape SPF, DKIM, and DMARC took for email:
+   publishing an ApertoID declaration requires control of the domain's
+   DNS and nothing more.  (Full cryptographic identity verification
+   additionally requires the agent to sign each request, per the
+   companion document [APERTOID-SIG]; that is a capability of the agent,
+   not additional infrastructure the declaring domain must operate.)
+   Worked examples of the records involved appear in Appendix A, and a
+   staged deployment progression in Section 13.1.
+
+3.2.  When ApertoID Does Not Apply
+
+   ApertoID is not the right tool in the following cases:
+
+   *  Where the parties already share trust configuration through an
+      issuance-based system -- SPIFFE, OAuth authorization servers, or
+      WIMSE workload identity [I-D.ietf-wimse-arch] -- that system
+      establishes trust directly between issuer and relying party and
+      can carry richer context than a DNS declaration.  ApertoID targets
+      the case where no such shared configuration exists and a relying
+      party must start from nothing but the domain name.
+
+   *  When per-action authorization is needed -- what a given agent may
+      do, rather than who it is -- ApertoID provides identity and
+      attribution only.  An authorization layer must sit above it; see
+      the authorization-versus-identity boundary in Section 14.1.
+
+   *  When full message integrity or header integrity is required, TLS
+      and HTTP Message Signatures (RFC 9421) are the appropriate
+      mechanisms; ApertoID-Signature binds identity to a specific action
+      and payload, not to the whole message.
+
+
+
+
+
+Ferro                   Expires 11 February 2027                [Page 7]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
+   *  Where DNS is not an acceptable trust anchor for the deployment.
+      Without DNSSEC, the assurance ApertoID provides is authorization-
+      level -- comparable to SPF and DKIM -- rather than cryptographic
+      proof of the resolution path; see Section 14.2.
+
+4.  Terminology
 
    Agent  A software system that acts autonomously on behalf of a
       domain, typically an AI-powered service that interacts with
@@ -274,14 +421,6 @@ Internet-Draft                  ApertoID                     August 2026
       optionally, to verify the agent's cryptographic identity.
 
    Policy Record  A DNS TXT record at "_apertoid.<domain>" that
-
-
-
-Ferro                   Expires 11 February 2027                [Page 5]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
       specifies the domain's ApertoID enforcement policy.  Analogous to
       a DMARC record.
 
@@ -290,7 +429,7 @@ Internet-Draft                  ApertoID                     August 2026
       with its endpoint URL, public key, and metadata.  Analogous to a
       DKIM key record.
 
-4.  Protocol Overview
+5.  Protocol Overview
 
    ApertoID operates in two layers, both implemented as DNS TXT records
    under the "_apertoid" underscore-scoped name:
@@ -299,6 +438,17 @@ Internet-Draft                  ApertoID                     August 2026
        that the domain participates in ApertoID and specifies the
        enforcement policy (reject, warn, or none) for agents that fail
        verification.  This is analogous to DMARC.
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027                [Page 8]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
    2.  *Identity Layer:* One record per authorized agent at
        "<selector>._apertoid.<domain>" declares the agent's endpoint
@@ -328,16 +478,6 @@ Internet-Draft                  ApertoID                     August 2026
    5.  If verification fails, the verifier applies the enforcement
        policy specified in the policy record.
 
-
-
-
-
-
-Ferro                   Expires 11 February 2027                [Page 6]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    Note: Without the cryptographic signature mechanism defined in
    [APERTOID-SIG], ApertoID provides authorization-level assurance only
    — the domain has declared which agents are authorized, but agents
@@ -346,13 +486,25 @@ Internet-Draft                  ApertoID                     August 2026
    without DKIM's cryptographic proof.  Full identity verification
    requires both this document and [APERTOID-SIG].
 
-5.  Record Syntax
+6.  Record Syntax
 
    Both ApertoID record types use the same syntax: a DNS TXT record
    containing semicolon-separated tag-value pairs.  This section defines
    the formal grammar using ABNF [RFC5234].
 
-5.1.  ABNF Definition
+6.1.  ABNF Definition
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027                [Page 9]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
 apertoid-record = version-tag *( *WSP ";" *WSP tag-value )
 version-tag     = "v" "=" "APERTOID1"
@@ -386,14 +538,6 @@ prev-tag        = "prev" "=" "sig:" base64-ed25519-sig
 ; Value format definitions
 base64-ed25519     = 43*43(BASE64CHAR)   ; 32 bytes, unpadded = 43 chars
 base64-ed25519-sig = 86*86(BASE64CHAR)   ; 64 bytes, unpadded = 86 chars
-
-
-
-Ferro                   Expires 11 February 2027                [Page 7]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
 BASE64CHAR         = ALPHA / DIGIT / "+" / "/"
 https-uri          = "https://" 1*URI-CHAR
 URI-CHAR           = ALPHA / DIGIT / "-" / "." / "_" / "~" /
@@ -410,6 +554,13 @@ ldh-label          = alnum *(alnum / "-")   ; RFC 1035 preferred; LDH,
                                             ; leading/trailing hyphen
 underscore-label   = "_" 1*(alnum / "-")    ; RFC 8552 underscore-scoped
 alnum              = ALPHA / DIGIT
+
+
+
+Ferro                   Expires 11 February 2027               [Page 10]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
    Tags are case-insensitive.  Values are case-sensitive unless
    otherwise specified.  Any amount of whitespace (WSP) on either side
@@ -433,7 +584,7 @@ alnum              = ALPHA / DIGIT
    A tag defined by this specification MUST NOT appear more than once in
    a single record.  If a verifier encounters a duplicated known tag
    (for example two "url" tags or two "p" tags), it MUST treat the
-   record as malformed and return "permerror" (see Section 11), rather
+   record as malformed and return "permerror" (see Section 12), rather
    than choosing one occurrence.  This matches the handling of duplicate
    tags in DKIM [RFC6376] and DMARC [RFC9989].  This rule applies only
    to the tags defined here; because unknown tags are ignored for
@@ -442,36 +593,37 @@ alnum              = ALPHA / DIGIT
    absolute: it means any of the tags defined by this specification
    ("v", "p", "rua", "url", "k", "pk", "exp", "type", "include",
    "status", "prev"), regardless of the record type implied by the DNS
-
-
-
-Ferro                   Expires 11 February 2027                [Page 8]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    name.  This duplicate-detection check is purely syntactic and is
    applied before, and independently of, the record-type-relative
-   semantic interpretation described in Section 6.1: a tag that is
+   semantic interpretation described in Section 7.1: a tag that is
    semantically irrelevant at a given record type (and therefore ignored
    as if unknown when interpreting the record) is nonetheless a
    duplicated known tag for syntax purposes if it appears more than
    once.
 
-6.  Policy Record
+7.  Policy Record
 
-6.1.  Record Location
+7.1.  Record Location
 
    The ApertoID Policy Record is a DNS TXT record published at:
 
    _apertoid.<domain>
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 11]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
    The underscore-scoped name "_apertoid" MUST be registered per
    [RFC8552].  A domain MUST NOT publish more than one ApertoID Policy
    Record.  If multiple TXT records exist at this name, the verifier
    MUST select the record whose first tag is a valid version tag with
    the value "APERTOID1" (that is, the record parses as an ApertoID
-   record per Section 5.1) and discard the others.  This selection MUST
+   record per Section 6.1) and discard the others.  This selection MUST
    be performed on the parsed version tag, NOT by a literal byte-prefix
    match on the string "v=APERTOID1": because tag names are case-
    insensitive and optional whitespace may precede the first tag, a
@@ -489,27 +641,19 @@ Internet-Draft                  ApertoID                     August 2026
    "rua") appearing at an agent name, or agent tags ("url", "k", "pk",
    etc.) appearing at the policy name, MUST be ignored as unknown tags
    for that record type in accordance with the forward-compatibility
-   rule of Section 5.1.  This "ignore as unknown for that type" rule is
+   rule of Section 6.1.  This "ignore as unknown for that type" rule is
    a semantic-interpretation rule and is distinct from the purely
-   syntactic duplicate-tag rule of Section 5.1: a tag ignored here
+   syntactic duplicate-tag rule of Section 6.1: a tag ignored here
    because it is irrelevant at this record type is still a "known tag"
    for duplicate detection, so a record that repeats any such tag
    remains malformed ("permerror").
 
-6.2.  Example
-
-
-
-
-Ferro                   Expires 11 February 2027                [Page 9]
-
-Internet-Draft                  ApertoID                     August 2026
-
+7.2.  Example
 
    _apertoid.example.com. 3600 IN TXT
      "v=APERTOID1; p=reject; rua=mailto:apertoid@example.com"
 
-6.3.  Policy Tags
+7.3.  Policy Tags
 
    v (REQUIRED)  Protocol version.  MUST be "APERTOID1" for this
       specification.  This tag MUST be the first tag in the record.
@@ -523,6 +667,13 @@ Internet-Draft                  ApertoID                     August 2026
       warn  The verifier SHOULD accept but flag requests from agents
          that fail verification.
 
+
+
+Ferro                   Expires 11 February 2027               [Page 12]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
       none  The verifier SHOULD take no specific action on failure.
          Used for monitoring and gradual deployment.
 
@@ -535,9 +686,9 @@ Internet-Draft                  ApertoID                     August 2026
       send periodic aggregate reports to this address.  The format of
       aggregate reports is outside the scope of this document.
 
-7.  Agent Declaration Record
+8.  Agent Declaration Record
 
-7.1.  Record Location
+8.1.  Record Location
 
    Each authorized agent is declared in a separate DNS TXT record at:
 
@@ -548,42 +699,47 @@ Internet-Draft                  ApertoID                     August 2026
    characters, consisting of alphanumeric characters and hyphens, not
    starting or ending with a hyphen.  Selectors are case-insensitive.
 
-7.2.  Example
+8.2.  Example
 
    leadhunter._apertoid.example.com. 3600 IN TXT
      "v=APERTOID1; url=https://agent.example.com/mcp;
       k=ed25519; pk=2TmyMjizLUEeS0F9GJvGedF4syZFYvrWl+oFHv56VSY;
       type=ai; exp=1759276800"
 
-
-
-Ferro                   Expires 11 February 2027               [Page 10]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    Note: The record above is shown on multiple lines for readability.
    In practice, it is a single TXT record string.  If the record exceeds
    255 bytes, it MUST be split into multiple character-strings within a
    single TXT RDATA as specified in [RFC1035] Section 3.3.14.
 
-7.3.  Agent Declaration Tags
+8.3.  Agent Declaration Tags
 
    v (REQUIRED)  Protocol version.  MUST be "APERTOID1".  MUST be the
       first tag.
 
    url (REQUIRED in non-revocation records, mutually exclusive with
    include)  The canonical endpoint URL of the authorized agent.  MUST
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 13]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
       be an HTTPS URI.  Required in every Agent Declaration Record
-      except a revocation record (see "status" below and Section 8); a
+      except a revocation record (see "status" below and Section 9); a
       record MUST contain either "url" or "include" unless it carries
       "status=revoked".  The verifier compares this URL against the
       agent's actual endpoint.  URL matching is performed as specified
-      in Section 11.4.
+      in Section 12.4.
 
    k (RECOMMENDED)  Key type.  MUST be "ed25519" for this specification.
       Additional key types MAY be registered via the ApertoID Key Type
-      Registry (Section 15.3).  If "k" is present, the "pk" tag MUST
+      Registry (Section 16.3).  If "k" is present, the "pk" tag MUST
       also be present, and the "exp" tag MUST also be present.  The
       dependency is one-directional: "k" requires "pk", but "pk" MAY
       appear without "k" (see below).
@@ -598,11 +754,11 @@ Internet-Draft                  ApertoID                     August 2026
       present without a "k" tag; in that case the key type defaults to
       "ed25519", which is the only type defined by this specification.
       A record MAY legitimately carry neither "k" nor "pk": for example,
-      the "url"-only deployment stage described in Section 12.1, in
+      the "url"-only deployment stage described in Section 13.1, in
       which the agent is authorized by URL but publishes no
       cryptographic key and consequently has no "exp" (such a record
       does not expire at the DNS layer), or a revocation record (see
-      Section 10), which carries only "v" and "status=revoked".
+      Section 11), which carries only "v" and "status=revoked".
 
    exp (REQUIRED when k is present)  Key expiration as a Unix timestamp
       (seconds since 1970-01-01T00:00:00Z).  Verifiers MUST reject keys
@@ -610,16 +766,8 @@ Internet-Draft                  ApertoID                     August 2026
       to no more than 90 days in the future and rotate keys before
       expiration.
 
-
-
-
-Ferro                   Expires 11 February 2027               [Page 11]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    type (OPTIONAL)  Agent type classification.  Valid values are
-      registered in the ApertoID Agent Type Registry (Section 15.2).
+      registered in the ApertoID Agent Type Registry (Section 16.2).
       Initial values:
 
       ai  Autonomous AI agent.
@@ -631,23 +779,30 @@ Internet-Draft                  ApertoID                     August 2026
       This field supports compliance with regulations that require AI
       systems to identify themselves, such as EU AI Act Article 50(2).
 
+
+
+Ferro                   Expires 11 February 2027               [Page 14]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    include (OPTIONAL, mutually exclusive with url)  Delegation to a
       third-party agent declaration.  The value is a fully qualified
       domain name pointing to an Agent Declaration Record published by
-      the third party.  See Section 8.
+      the third party.  See Section 9.
 
    status (OPTIONAL)  Agent status.  If set to "revoked", verifiers MUST
       treat this agent as unauthorized regardless of other fields.  A
       record carrying "status=revoked" is a revocation record: it MUST
       contain "v" and "status=revoked", and is exempt from the "url"-
       or-"include" requirement (it need not, and typically does not,
-      carry either).  See Section 10.
+      carry either).  See Section 11.
 
    prev (OPTIONAL)  Key rotation continuity proof.  Contains a signature
       of the new public key made with the old private key, prefixed by
-      "sig:".  See Section 10.2.
+      "sig:".  See Section 11.2.
 
-7.4.  Record Size Considerations
+8.4.  Record Size Considerations
 
    A typical Agent Declaration Record with all recommended fields is
    approximately 170 bytes, fitting comfortably within a single 255-byte
@@ -655,24 +810,12 @@ Internet-Draft                  ApertoID                     August 2026
    size limit.  Each agent has its own record at a distinct DNS name, so
    the number of agents per domain is not constrained by record size.
 
-8.  Delegation
+9.  Delegation
 
    When a domain uses third-party AI agent services, the domain owner
    delegates agent authorization by publishing an Agent Declaration
    Record with an "include" tag pointing to the third party's own
    ApertoID record.
-
-
-
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 12]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
    ; Domain delegates to a Salesforce agent
    salesforce._apertoid.example.com. 3600 IN TXT
@@ -692,13 +835,20 @@ Internet-Draft                  ApertoID                     August 2026
       target records.  A chain that would require a third "include" hop
       MUST be treated as a verification failure (result "temperror").
 
+
+
+Ferro                   Expires 11 February 2027               [Page 15]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    *  A verifier MUST NOT follow more than 10 "include" references in
       total per verification attempt.
 
    *  Circular "include" references MUST be detected and treated as a
       verification failure.
 
-   *  The revocation check of Section 10.1 MUST be applied to EACH
+   *  The revocation check of Section 11.1 MUST be applied to EACH
       record resolved through an "include" reference, not only the
       original Agent Declaration Record.  If any record in the
       delegation chain carries "status=revoked", the verifier MUST treat
@@ -709,28 +859,14 @@ Internet-Draft                  ApertoID                     August 2026
    MUST NOT contain both.  Every Agent Declaration Record that is NOT a
    revocation record MUST contain either "url" or "include".  A
    revocation record (a record containing "status=revoked", see
-   Section 10) is exempt from this requirement: it MUST contain "v" and
+   Section 11) is exempt from this requirement: it MUST contain "v" and
    "status=revoked" and MUST NOT be required to carry "url" or
    "include".  Verifiers MUST NOT treat the absence of "url" and
    "include" as a syntax error when "status=revoked" is present.
 
-9.  Key Publication
+10.  Key Publication
 
-
-
-
-
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 13]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
-9.1.  Ed25519 Key Format
+10.1.  Ed25519 Key Format
 
    ApertoID uses Ed25519 [RFC8032] as its mandatory-to-implement key
    type.  Ed25519 was chosen for compact key size (32 bytes / 43 Base64
@@ -742,9 +878,9 @@ Internet-Draft                  ApertoID                     August 2026
    The public key is published as the raw 32-byte Ed25519 public key
    encoded in unpadded Base64.  Implementations MUST support Ed25519.
    Future specifications MAY define additional key types via the
-   ApertoID Key Type Registry (Section 15.3).
+   ApertoID Key Type Registry (Section 16.3).
 
-9.2.  Key Lifecycle
+10.2.  Key Lifecycle
 
    Keys published in Agent Declaration Records MUST have an expiration
    timestamp in the "exp" field.  Domain owners SHOULD set key
@@ -753,12 +889,21 @@ Internet-Draft                  ApertoID                     August 2026
    hour) for Agent Declaration Records to balance caching efficiency
    with timely key rotation.
 
-10.  Revocation
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 16]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
+11.  Revocation
 
    ApertoID provides two revocation mechanisms: immediate revocation via
    status record and key rotation with continuity proof.
 
-10.1.  Immediate Revocation
+11.1.  Immediate Revocation
 
    To immediately revoke an agent, the domain owner replaces the Agent
    Declaration Record with a revocation record:
@@ -774,19 +919,7 @@ Internet-Draft                  ApertoID                     August 2026
    minimize the window during which cached records may allow a revoked
    agent to pass verification.
 
-
-
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 14]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
-10.2.  Key Rotation
+11.2.  Key Rotation
 
    When rotating keys, the domain owner publishes a new Agent
    Declaration Record with the new key and a "prev" tag containing a
@@ -810,6 +943,17 @@ Internet-Draft                  ApertoID                     August 2026
    Encode the signature as unpadded Base64. (4) Prepend "sig:" to form
    the "prev" tag value.
 
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 17]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    Verifiers that have cached the previous public key SHOULD verify the
    "prev" signature to confirm that the key rotation was authorized by
    the holder of the previous key.  If the "prev" signature is invalid,
@@ -820,29 +964,14 @@ Internet-Draft                  ApertoID                     August 2026
    key based solely on DNS authority (i.e., the domain owner's control
    of the DNS zone).
 
-11.  Verification Procedure
+12.  Verification Procedure
 
    This section defines the procedure for verifying an agent's
    authorization via DNS records.  Cryptographic signature verification
    on individual HTTP requests is defined in the companion document
    [APERTOID-SIG].
 
-
-
-
-
-
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 15]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
-11.1.  Verification Inputs
+12.1.  Verification Inputs
 
    The verifier receives: "claimed_domain" (the domain the agent claims
    to represent), "selector" (the agent selector), "agent_url" (the URL
@@ -855,7 +984,7 @@ Internet-Draft                  ApertoID                     August 2026
    obtained from the ApertoID-Signature header defined in
    [APERTOID-SIG].
 
-11.2.  Verification Algorithm
+12.2.  Verification Algorithm
 
 
 
@@ -876,24 +1005,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 16]
+Ferro                   Expires 11 February 2027               [Page 18]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -937,7 +1049,7 @@ Internet-Draft                  ApertoID                     August 2026
             apply policy p=
      12. Return result="pass"
 
-11.3.  Result Values
+12.3.  Result Values
 
    pass  The agent is authorized by the domain and, if applicable, the
       cryptographic key matches.
@@ -949,7 +1061,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 11 February 2027               [Page 17]
+Ferro                   Expires 11 February 2027               [Page 19]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -967,7 +1079,7 @@ Internet-Draft                  ApertoID                     August 2026
    temperror  A temporary error occurred (e.g., DNS timeout, delegation
       failure).
 
-11.4.  URL Matching Rules
+12.4.  URL Matching Rules
 
    When comparing the agent's URL against the declared URL: the scheme
    MUST be "https" (HTTP MUST NOT be accepted); host comparison is case-
@@ -979,9 +1091,9 @@ Internet-Draft                  ApertoID                     August 2026
    ignored; port numbers, if present, MUST match (default HTTPS port 443
    is assumed when absent).
 
-12.  Operational Considerations
+13.  Operational Considerations
 
-12.1.  Deployment Guidance
+13.1.  Deployment Guidance
 
    Domain owners deploying ApertoID SHOULD follow this progression: (1)
    Publish a Policy Record with "p=none" and a "rua=" address to begin
@@ -992,7 +1104,7 @@ Internet-Draft                  ApertoID                     August 2026
    keys (k= and pk= tags) to agent records. (5) Progress to "p=warn" and
    then "p=reject" as confidence grows.
 
-12.2.  CDN and Reverse Proxy Interaction
+13.2.  CDN and Reverse Proxy Interaction
 
    When agents operate behind CDNs or reverse proxies, the agent's
    apparent URL may differ from the URL in the Agent Declaration Record.
@@ -1005,12 +1117,12 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 11 February 2027               [Page 18]
+Ferro                   Expires 11 February 2027               [Page 20]
 
 Internet-Draft                  ApertoID                     August 2026
 
 
-12.3.  TTL Recommendations
+13.3.  TTL Recommendations
 
    The following TTL values are RECOMMENDED: Policy Records: 3600
    seconds (1 hour), as these change infrequently.  Agent Declaration
@@ -1018,9 +1130,9 @@ Internet-Draft                  ApertoID                     August 2026
    rotation.  Revocation Records: 300 seconds (5 minutes), minimizing
    the vulnerability window after revocation.
 
-13.  Security Considerations
+14.  Security Considerations
 
-13.1.  Authorization vs. Identity Verification
+14.1.  Authorization vs. Identity Verification
 
    This document alone provides authorization-level assurance: the
    domain declares which agents are authorized.  Without the
@@ -1035,7 +1147,7 @@ Internet-Draft                  ApertoID                     August 2026
    published in DNS — requires implementation of both this document and
    [APERTOID-SIG].
 
-13.2.  DNSSEC
+14.2.  DNSSEC
 
    ApertoID records SHOULD be protected by DNSSEC [RFC4033] [RFC4034]
    [RFC4035].
@@ -1061,26 +1173,26 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 11 February 2027               [Page 19]
+Ferro                   Expires 11 February 2027               [Page 21]
 
 Internet-Draft                  ApertoID                     August 2026
 
 
-13.3.  Key Compromise
+14.3.  Key Compromise
 
    If an agent's Ed25519 private key is compromised, the domain owner
-   MUST immediately publish a revocation record (Section 10.1) with a
+   MUST immediately publish a revocation record (Section 11.1) with a
    low TTL (300 seconds).  The window of vulnerability equals the TTL of
    the previously cached Agent Declaration Record.  Domain owners SHOULD
    use TTL values no higher than 3600 seconds to limit the maximum
    vulnerability window to one hour.
 
-13.4.  Delegation Abuse
+14.4.  Delegation Abuse
 
    Attackers may attempt to abuse the delegation mechanism to create
    excessively long resolution chains, circular references, or to keep a
    revoked agent alive behind a delegation.  The limits and checks
-   defined in Section 8 bound this risk: the "include" delegation limit,
+   defined in Section 9 bound this risk: the "include" delegation limit,
    the total-lookup cap, and circular-reference detection together bound
    the work a single verification can be made to perform, while the per-
    hop revocation re-check ensures a "status=revoked" record anywhere in
@@ -1089,27 +1201,27 @@ Internet-Draft                  ApertoID                     August 2026
    lookup, or cycle limits is a temporary error ("temperror"), and a
    revoked record in the chain yields "revoked".
 
-13.5.  Agent Enumeration
+14.5.  Agent Enumeration
 
    An adversary may attempt to enumerate a domain's agents by querying
    common selector names.  Domain owners who wish to limit enumeration
    SHOULD use non-predictable selector names.  DNSSEC-signed zones using
    NSEC3 [RFC5155] provide resistance against zone walking.
 
-13.6.  DNS Amplification
+14.6.  DNS Amplification
 
    ApertoID records are TXT records of moderate size (typically 170-250
    bytes), comparable to DKIM key records.  Standard DNS amplification
    mitigations (response rate limiting, BCP 38 source address
    validation) apply.
 
-13.7.  Threat Model and Non-Goals
+14.7.  Threat Model and Non-Goals
 
    This subsection consolidates what ApertoID does and does not defend
    against, so that deployers can reason about residual risk.  Several
    limitations are described in more detail elsewhere and are not
    repeated here: the boundary between authorization-level and identity-
-   level assurance is covered in Section 13.1; and, for deployments that
+   level assurance is covered in Section 14.1; and, for deployments that
    also use the HTTP request signing mechanism, the lack of recipient
    binding and cross-service replay (the "Action Binding Scope"
    considerations), the fact that HTTP headers other than method and
@@ -1117,7 +1229,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 11 February 2027               [Page 20]
+Ferro                   Expires 11 February 2027               [Page 22]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -1134,7 +1246,7 @@ Internet-Draft                  ApertoID                     August 2026
    a matching forged signature) or a fraudulent URL, and the
    verification will succeed.  This is the same trust dependency that
    SPF, DKIM, and DMARC place on DNS.  The standard mitigation is DNSSEC
-   (Section 13.2): a verifier that validates DNSSEC will reject forged
+   (Section 14.2): a verifier that validates DNSSEC will reject forged
    records, and DNSSEC is REQUIRED for full cryptographic assurance of
    agent identity.  Verifiers that do not validate DNSSEC obtain only
    authorization-level assurance and MUST NOT treat a passing result as
@@ -1163,7 +1275,7 @@ Internet-Draft                  ApertoID                     August 2026
    publish valid ApertoID records declaring its own agents under the
    reused name; a verifier has no in-protocol way to distinguish the new
    owner from the original.  The "prev" key-rotation continuity proof
-   (Section 10.2) does NOT mitigate this: it is OPTIONAL, it only helps
+   (Section 11.2) does NOT mitigate this: it is OPTIONAL, it only helps
    a verifier that has cached the previous key, and the takeover path is
    simply to publish a fresh key with no "prev" tag at all -- a fully
    conforming record that carries no continuity claim and triggers no
@@ -1173,7 +1285,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 11 February 2027               [Page 21]
+Ferro                   Expires 11 February 2027               [Page 23]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -1196,7 +1308,7 @@ Internet-Draft                  ApertoID                     August 2026
    such a layer can base its decisions; it does not itself carry or
    evaluate permissions.
 
-14.  Privacy Considerations
+15.  Privacy Considerations
 
    ApertoID records are published in DNS and are therefore publicly
    queryable.  Domain owners should be aware that publishing ApertoID
@@ -1211,9 +1323,9 @@ Internet-Draft                  ApertoID                     August 2026
    domains to DNS operators.  Standard DNS privacy mechanisms (DNS over
    TLS [RFC7858], DNS over HTTPS [RFC8484]) mitigate this concern.
 
-15.  IANA Considerations
+16.  IANA Considerations
 
-15.1.  Underscore-Scoped Domain Name Registration
+16.1.  Underscore-Scoped Domain Name Registration
 
    This document requests registration of the following entry in the
    "Underscored and Globally Scoped DNS Node Names" registry per
@@ -1229,12 +1341,12 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 11 February 2027               [Page 22]
+Ferro                   Expires 11 February 2027               [Page 24]
 
 Internet-Draft                  ApertoID                     August 2026
 
 
-15.2.  ApertoID Agent Type Registry
+16.2.  ApertoID Agent Type Registry
 
    This document requests IANA to create the "ApertoID Agent Type"
    registry with the following initial values.  New values are
@@ -1252,7 +1364,7 @@ Internet-Draft                  ApertoID                     August 2026
 
                                   Table 2
 
-15.3.  ApertoID Key Type Registry
+16.3.  ApertoID Key Type Registry
 
    This document requests IANA to create the "ApertoID Key Type"
    registry with the following initial value.  New values are registered
@@ -1266,9 +1378,9 @@ Internet-Draft                  ApertoID                     August 2026
 
                                  Table 3
 
-16.  References
+17.  References
 
-16.1.  Normative References
+17.1.  Normative References
 
    [RFC1035]  Mockapetris, P., "Domain names - implementation and
               specification", RFC 1035, November 1987,
@@ -1285,7 +1397,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 11 February 2027               [Page 23]
+Ferro                   Expires 11 February 2027               [Page 25]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -1331,7 +1443,7 @@ Internet-Draft                  ApertoID                     August 2026
               RFC 8552, March 2019,
               <https://www.rfc-editor.org/info/rfc8552>.
 
-16.2.  Informative References
+17.2.  Informative References
 
    [RFC6376]  Crocker, D., "DomainKeys Identified Mail (DKIM)
               Signatures", RFC 6376, September 2011,
@@ -1341,7 +1453,7 @@ Internet-Draft                  ApertoID                     August 2026
 
 
 
-Ferro                   Expires 11 February 2027               [Page 24]
+Ferro                   Expires 11 February 2027               [Page 26]
 
 Internet-Draft                  ApertoID                     August 2026
 
@@ -1365,18 +1477,42 @@ Internet-Draft                  ApertoID                     August 2026
               October 2018, <https://www.rfc-editor.org/info/rfc8484>.
 
    [I-D.mozleywilliams-dnsop-dnsaid]
-              Mozley-Williams, J., "DNS Agent Identity Discovery (DNS-
-              AID)", Work in Progress, Internet-Draft, draft-
-              mozleywilliams-dnsop-dnsaid-01, March 2026,
+              Mozley, J. and N. Williams, "DNS for AI Discovery", Work
+              in Progress, Internet-Draft, draft-mozleywilliams-dnsop-
+              dnsaid-02, May 2026,
               <https://datatracker.ietf.org/doc/html/draft-
-              mozleywilliams-dnsop-dnsaid-01>.
+              mozleywilliams-dnsop-dnsaid-02>.
 
    [I-D.klrc-aiagent-auth]
-              Lehman, K. and R. Chen, "Agent Identity Management System
-              (AIMS)", Work in Progress, Internet-Draft, draft-klrc-
-              aiagent-auth-00, March 2026,
+              Kasselman, P., Lombardo, J., Rosomakho, Y., Campbell, B.,
+              Steele, N., and A. Parecki, "AI Agent Authentication and
+              Authorization", Work in Progress, Internet-Draft, draft-
+              klrc-aiagent-auth-03, July 2026,
               <https://datatracker.ietf.org/doc/html/draft-klrc-aiagent-
-              auth-00>.
+              auth-03>.
+
+   [I-D.ietf-wimse-arch]
+              Salowey, J., Rosomakho, Y., and H. Tschofenig, "Workload
+              Identity in a Multi System Environment (WIMSE)
+              Architecture", Work in Progress, Internet-Draft, draft-
+              ietf-wimse-arch-08, July 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-wimse-
+              arch-08>.
+
+   [I-D.schwenkschuster-wimse-trust-domain-discovery]
+              Schwenkschuster, A. and Y. Rosomakho, "WIMSE Trust Domain
+              Discovery", Work in Progress, Internet-Draft, draft-
+              schwenkschuster-wimse-trust-domain-discovery-00, July
+              2026, <https://datatracker.ietf.org/doc/html/draft-
+              schwenkschuster-wimse-trust-domain-discovery-00>.
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 27]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
    [I-D.ferro-dnsop-apertodns-protocol]
               Ferro, A., "ApertoDNS Protocol: A Modern Dynamic DNS
@@ -1393,14 +1529,6 @@ Internet-Draft                  ApertoID                     August 2026
               httpbis-apertoid-sig-02>.  Work in progress.
 
 Appendix A.  Complete Examples
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 25]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
 A.1.  Basic Deployment
 
@@ -1432,6 +1560,16 @@ A.2.  Third-Party Delegation
 
 A.3.  Emergency Revocation and Key Rotation
 
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 28]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    ; Step 1: Immediately revoke compromised agent
    leadhunter._apertoid.example.com. 300 IN TXT
      "v=APERTOID1; status=revoked"
@@ -1450,14 +1588,6 @@ Appendix B.  Integration with Application-Layer Protocols
    ApertoID is designed to be protocol-agnostic at the application
    layer.  MCP Server Cards at "/.well-known/mcp/server-card.json"
    provide capability discovery; ApertoID complements MCP by providing
-
-
-
-Ferro                   Expires 11 February 2027               [Page 26]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    DNS-based verification that a given MCP server is authorized by the
    claimed domain.  A2A Agent Cards at "/.well-known/agent.json" provide
    agent discovery; ApertoID provides a DNS-based trust anchor
@@ -1488,6 +1618,14 @@ Appendix C.  Changes from -01
       include", one hop) disagreed by one level. -02 resolves this in
       favour of TWO hops, preserving the capability the -01 number
       already granted rather than reducing it (a one-hop reading would
+
+
+
+Ferro                   Expires 11 February 2027               [Page 29]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
       have removed something -01 permitted).  Safety at this depth is
       provided not by reducing it but by the other Section 8 limits, all
       unchanged: the per-hop revocation re-check below, circular-
@@ -1496,23 +1634,6 @@ Appendix C.  Changes from -01
       algorithm refers to Section 8 rather than repeating a number, so
       the two cannot drift.  (An implementer who read -01 as one hop
       will now allow two; hence this is listed as a behavior change.)
-
-
-
-
-
-
-
-
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 27]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
    *  REVOCATION OF DELEGATED TARGETS (Sections 8 and 11.2): the
       revocation check (Section 10.1) MUST now be applied to EACH record
@@ -1554,6 +1675,13 @@ Appendix D.  Changes from -00
       characters); the "=" padding character was removed from
       BASE64CHAR.
 
+
+
+Ferro                   Expires 11 February 2027               [Page 30]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    *  Corrected the "label" production: "ldh-label" is now "alnum"-first
       (a leading digit is permitted), and an "underscore-label"
       alternative was added so underscore-scoped names such as
@@ -1561,14 +1689,6 @@ Appendix D.  Changes from -00
 
    *  Tightened the whitespace ("*WSP" around ";"), URI-CHAR (added "%";
       excluded ";"), and email-address (RFC 5321 dot-atom) productions.
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 28]
-
-Internet-Draft                  ApertoID                     August 2026
-
 
    *  Clarified that revocation records ("status=revoked") are exempt
       from the "url"-or-"include" requirement; that record type is
@@ -1613,12 +1733,4 @@ Author's Address
 
 
 
-
-
-
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 29]
+Ferro                   Expires 11 February 2027               [Page 31]
