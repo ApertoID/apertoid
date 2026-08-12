@@ -958,30 +958,32 @@ Internet-Draft             ApertoID-Signature                August 2026
               Encodings", RFC 4648, October 2006,
               <https://www.rfc-editor.org/info/rfc4648>.
 
-   [RFC5234]  Crocker, D., "Augmented BNF for Syntax Specifications:
-              ABNF", RFC 5234, January 2008,
+   [RFC5234]  Crocker, D. and P. Overell, "Augmented BNF for Syntax
+              Specifications: ABNF", RFC 5234, January 2008,
               <https://www.rfc-editor.org/info/rfc5234>.
 
-   [RFC8032]  Josefsson, S., "Edwards-Curve Digital Signature Algorithm
-              (EdDSA)", RFC 8032, January 2017,
+   [RFC8032]  Josefsson, S. and I. Liusvaara, "Edwards-Curve Digital
+              Signature Algorithm (EdDSA)", RFC 8032, January 2017,
               <https://www.rfc-editor.org/info/rfc8032>.
 
    [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
               2119 Key Words", RFC 8174, May 2017,
               <https://www.rfc-editor.org/info/rfc8174>.
 
-   [RFC9110]  Fielding, R., "HTTP Semantics", RFC 9110, June 2022,
+   [RFC9110]  Fielding, R., Nottingham, M., and J. Reschke, "HTTP
+              Semantics", RFC 9110, June 2022,
               <https://www.rfc-editor.org/info/rfc9110>.
 
    [RFC1035]  Mockapetris, P., "Domain names - implementation and
               specification", RFC 1035, November 1987,
               <https://www.rfc-editor.org/info/rfc1035>.
 
-   [RFC9112]  Fielding, R., "HTTP/1.1", RFC 9112, June 2022,
+   [RFC9112]  Fielding, R., Nottingham, M., and J. Reschke, "HTTP/1.1",
+              RFC 9112, June 2022,
               <https://www.rfc-editor.org/info/rfc9112>.
 
-   [RFC9113]  Thomson, M., "HTTP/2", RFC 9113, June 2022,
-              <https://www.rfc-editor.org/info/rfc9113>.
+   [RFC9113]  Thomson, M. and C. Benfield, "HTTP/2", RFC 9113, June
+              2022, <https://www.rfc-editor.org/info/rfc9113>.
 
    [RFC9114]  Bishop, M., "HTTP/3", RFC 9114, June 2022,
               <https://www.rfc-editor.org/info/rfc9114>.
@@ -995,13 +997,11 @@ Internet-Draft             ApertoID-Signature                August 2026
 
 9.2.  Informative References
 
-   [RFC5905]  Mills, D., "Network Time Protocol Version 4: Protocol and
-              Algorithms Specification", RFC 5905, June 2010,
+   [RFC5905]  Mills, D., Martin, J., Burbank, J., and W. Kasch, "Network
+              Time Protocol Version 4: Protocol and Algorithms
+              Specification", RFC 5905, June 2010,
               <https://www.rfc-editor.org/info/rfc5905>.
 
-   [RFC6376]  Crocker, D., "DomainKeys Identified Mail (DKIM)
-              Signatures", RFC 6376, September 2011,
-              <https://www.rfc-editor.org/info/rfc6376>.
 
 
 
@@ -1010,8 +1010,13 @@ Ferro                   Expires 11 February 2027               [Page 18]
 Internet-Draft             ApertoID-Signature                August 2026
 
 
-   [RFC9421]  Backman, A., "HTTP Message Signatures", RFC 9421, February
-              2024, <https://www.rfc-editor.org/info/rfc9421>.
+   [RFC6376]  Crocker, D., Hansen, T., and M. Kucherawy, "DomainKeys
+              Identified Mail (DKIM) Signatures", RFC 6376, September
+              2011, <https://www.rfc-editor.org/info/rfc6376>.
+
+   [RFC9421]  Backman, A., Richer, J., and M. Sporny, "HTTP Message
+              Signatures", RFC 9421, February 2024,
+              <https://www.rfc-editor.org/info/rfc9421>.
 
 Appendix A.  Full Request/Response Example
 
@@ -1053,11 +1058,6 @@ Appendix A.  Full Request/Response Example
    628e22adadb97ae8d0de9bbf50b3556d252763f2d5710c2c6b34\
    2173c1aa4675\n
 
-   (The body_hash line is the 64-hex-char SHA-256 of the
-    body, shown wrapped with a trailing "\" continuation;
-    it is one line followed by a single LF. The full signing
-    input is 135 bytes and ends with 0x0A.)
-
 
 
 
@@ -1065,6 +1065,11 @@ Ferro                   Expires 11 February 2027               [Page 19]
 
 Internet-Draft             ApertoID-Signature                August 2026
 
+
+   (The body_hash line is the 64-hex-char SHA-256 of the
+    body, shown wrapped with a trailing "\" continuation;
+    it is one line followed by a single LF. The full signing
+    input is 135 bytes and ends with 0x0A.)
 
    === Verifier checks ===
 
@@ -1101,11 +1106,6 @@ Appendix B.  Implementation Guidance
 
    To maximize adoption, implementations SHOULD provide middleware or
    decorator patterns that require minimal code changes.
-
-
-
-
-
 
 
 
