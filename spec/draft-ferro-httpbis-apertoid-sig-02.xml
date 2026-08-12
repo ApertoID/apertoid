@@ -514,7 +514,7 @@ def verify_request(request):
     # cache (Section 4, step 9a).
     return ok
 ]]></artwork>
-      <t>Reference implementations in Python, Go, and JavaScript are maintained at https://github.com/ApertoID.</t>
+      <t>A reference implementation in Python is maintained at https://github.com/ApertoID/apertoid.</t>
     </section>
 
     <section anchor="changes-01">

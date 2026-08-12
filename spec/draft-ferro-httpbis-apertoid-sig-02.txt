@@ -1168,8 +1168,8 @@ def verify_request(request):
     # cache (Section 4, step 9a).
     return ok
 
-   Reference implementations in Python, Go, and JavaScript are
-   maintained at https://github.com/ApertoID.
+   A reference implementation in Python is maintained at
+   https://github.com/ApertoID/apertoid.
 
 
 
