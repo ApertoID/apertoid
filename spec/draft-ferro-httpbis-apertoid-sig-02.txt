@@ -77,7 +77,7 @@ Table of Contents
      3.3.  Example . . . . . . . . . . . . . . . . . . . . . . . . .   9
    4.  Verification Procedure  . . . . . . . . . . . . . . . . . . .  10
      4.1.  Result Values . . . . . . . . . . . . . . . . . . . . . .  11
-   5.  Replay Protection . . . . . . . . . . . . . . . . . . . . . .  11
+   5.  Replay Protection . . . . . . . . . . . . . . . . . . . . . .  12
    6.  Security Considerations . . . . . . . . . . . . . . . . . . .  12
      6.1.  Action Binding Scope  . . . . . . . . . . . . . . . . . .  12
      6.2.  HTTP Headers Not Signed . . . . . . . . . . . . . . . . .  13
@@ -86,13 +86,13 @@ Table of Contents
      6.5.  Private Key Protection  . . . . . . . . . . . . . . . . .  14
      6.6.  Signature Stripping . . . . . . . . . . . . . . . . . . .  14
      6.7.  Threat Model and Non-Goals  . . . . . . . . . . . . . . .  14
-   7.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .  17
+   7.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .  16
    8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  17
      8.1.  HTTP Header Field Registration  . . . . . . . . . . . . .  17
    9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  17
      9.1.  Normative References  . . . . . . . . . . . . . . . . . .  17
      9.2.  Informative References  . . . . . . . . . . . . . . . . .  18
-   Appendix A.  Full Request/Response Example  . . . . . . . . . . .  19
+   Appendix A.  Full Request/Response Example  . . . . . . . . . . .  18
    Appendix B.  Implementation Guidance  . . . . . . . . . . . . . .  20
    Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  22
    Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  22
@@ -545,15 +545,15 @@ Internet-Draft             ApertoID-Signature                August 2026
          cryptographically-verified result, and returns the DNS-layer
          "pass" (the request is authorized on the URL match alone).
          Steps 7-9a are skipped.
+     6b. (OPTIONAL) If the verifier imposes a maximum request-body
+         size (SHOULD, see Section 6.7) and the body exceeds it:
+         Return "body_too_large". This check, when performed, MUST
+         precede step 7, so that an over-large body is rejected
+         before it is hashed. A verifier that imposes no such limit
+         omits this step.
      7. Reconstruct signing_input from:
         d, s, t, n,
         request.method (uppercase),
-        request.target (origin-form, unnormalized),
-        SHA-256(request.body)
-        (seven LF-terminated components; see Section 3.1)
-     8. Verify Ed25519 signature sig= against signing_input
-        using public key pk= from DNS record
-     9. If signature is invalid:
 
 
 
@@ -562,6 +562,12 @@ Ferro                   Expires 11 February 2027               [Page 10]
 Internet-Draft             ApertoID-Signature                August 2026
 
 
+        request.target (origin-form, unnormalized),
+        SHA-256(request.body)
+        (seven LF-terminated components; see Section 3.1)
+     8. Verify Ed25519 signature sig= against signing_input
+        using public key pk= from DNS record
+     9. If signature is invalid:
         Apply policy p= from policy record
         Return "sig_invalid"
      9a. Signature is valid: NOW insert n= into the nonce
@@ -597,6 +603,21 @@ Internet-Draft             ApertoID-Signature                August 2026
    sig_invalid  The Ed25519 signature does not match the signing input
       and public key.
 
+   body_too_large  The request body exceeds the maximum size the
+      verifier is willing to hash.  This result arises only when a
+      verifier imposes an optional body-size limit (see step 6b of the
+      algorithm above and Section 6.7); a verifier that imposes no limit
+      never returns it.
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 11]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
+
    DNS-level results (none, revoked, expired, url_mismatch,
    key_mismatch, permerror, temperror) are as defined in [APERTOID-DNS].
 
@@ -610,14 +631,6 @@ Internet-Draft             ApertoID-Signature                August 2026
       signature.
 
    Nonce uniqueness  Within the timestamp window, each nonce may be used
-
-
-
-Ferro                   Expires 11 February 2027               [Page 11]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
       only once.  Verifiers MUST maintain a nonce cache and reject
       duplicate nonces.  The cache need only retain entries for the
       duration of the validity window; older entries can be safely
@@ -649,19 +662,6 @@ Internet-Draft             ApertoID-Signature                August 2026
       recipient.  The d= tag carries the AGENT's domain, not the
       DESTINATION service's domain.
 
-   *  The nonce cache does NOT prevent cross-service replay.  Each
-      service maintains its own nonce cache, so a signature captured by
-      (or leaked from) service A can be replayed to a different service
-      B within the timestamp window with the ORIGINAL nonce, because B
-      has never seen that nonce.  Replay protection via the nonce is
-      per-destination, not global.
-
-
-
-
-
-
-
 
 
 
@@ -673,6 +673,13 @@ Ferro                   Expires 11 February 2027               [Page 12]
 
 Internet-Draft             ApertoID-Signature                August 2026
 
+
+   *  The nonce cache does NOT prevent cross-service replay.  Each
+      service maintains its own nonce cache, so a signature captured by
+      (or leaked from) service A can be replayed to a different service
+      B within the timestamp window with the ORIGINAL nonce, because B
+      has never seen that nonce.  Replay protection via the nonce is
+      per-destination, not global.
 
    In practice, cross-host replay is mitigated by TLS: the agent
    establishes a TLS connection to a specific host, and the signature is
@@ -715,13 +722,6 @@ Internet-Draft             ApertoID-Signature                August 2026
    nodes.  Failure to maintain a shared nonce cache allows replay
    attacks across processes.  For services running on a single node, an
    in-memory cache is sufficient.  For distributed services, a shared
-   cache (e.g., Redis, Memcached) is RECOMMENDED.
-
-
-
-
-
-
 
 
 
@@ -729,6 +729,8 @@ Ferro                   Expires 11 February 2027               [Page 13]
 
 Internet-Draft             ApertoID-Signature                August 2026
 
+
+   cache (e.g., Redis, Memcached) is RECOMMENDED.
 
 6.5.  Private Key Protection
 
@@ -776,8 +778,6 @@ Internet-Draft             ApertoID-Signature                August 2026
    is what prevents two attacks in practice: an attacker cannot capture
    a signature to replay to another host without compromising the
    transport or the destination, and an attacker cannot modify unsigned
-   headers in transit.  This is an assumption the mechanism relies on,
-   not a property it provides.  If TLS is absent, terminated early (for
 
 
 
@@ -786,6 +786,8 @@ Ferro                   Expires 11 February 2027               [Page 14]
 Internet-Draft             ApertoID-Signature                August 2026
 
 
+   headers in transit.  This is an assumption the mechanism relies on,
+   not a property it provides.  If TLS is absent, terminated early (for
    example at an untrusted intermediary), or successfully intercepted,
    both protections are lost: a captured signature becomes replayable to
    other hosts within the timestamp window (see Section 6.1), and the
@@ -822,26 +824,6 @@ Internet-Draft             ApertoID-Signature                August 2026
    the cache for a window's worth of legitimate traffic and MAY apply
    their own eviction policy beyond the age bound.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 15]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
    A url-only agent yields authorization, not proof of the requester:
    when the resolved Agent Declaration Record carries no "pk", the
    verification procedure returns a result based on the DNS-layer URL
@@ -852,6 +834,14 @@ Internet-Draft             ApertoID-Signature                August 2026
    agent's private key: an attacker able to reach, or to proxy requests
    through, the authorized URL is not excluded.  Implementations SHOULD
    surface this distinction to the caller so that a URL-authorized
+
+
+
+Ferro                   Expires 11 February 2027               [Page 15]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
+
    result is not mistaken for a cryptographically-verified one; the
    reference implementation exposes a per-result flag indicating whether
    the signature was cryptographically verified.
@@ -887,17 +877,6 @@ Internet-Draft             ApertoID-Signature                August 2026
       normalizes it invalidates the signature, and CONNECT is not
       supported (Section 3.1).
 
-
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 16]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
    *  Streaming or chunked bodies where the complete body is not
       available before verification.  The signing input requires a hash
       over the full body (Section 3.1), so a body that cannot be fully
@@ -911,6 +890,14 @@ Internet-Draft             ApertoID-Signature                August 2026
    header is to declare agent identity.  However, domain owners should
    be aware that the same d= and s= values appear on all requests from
    the same agent, creating a correlation identifier that enables
+
+
+
+Ferro                   Expires 11 February 2027               [Page 16]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
+
    request tracking across time and endpoints.
 
    Services that observe ApertoID-Signature headers learn which domains
@@ -944,16 +931,6 @@ Internet-Draft             ApertoID-Signature                August 2026
               Requirement Levels", RFC 2119, March 1997,
               <https://www.rfc-editor.org/info/rfc2119>.
 
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 17]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
    [RFC4648]  Josefsson, S., "The Base16, Base32, and Base64 Data
               Encodings", RFC 4648, October 2006,
               <https://www.rfc-editor.org/info/rfc4648>.
@@ -969,6 +946,13 @@ Internet-Draft             ApertoID-Signature                August 2026
    [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
               2119 Key Words", RFC 8174, May 2017,
               <https://www.rfc-editor.org/info/rfc8174>.
+
+
+
+Ferro                   Expires 11 February 2027               [Page 17]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
 
    [RFC9110]  Fielding, R., Nottingham, M., and J. Reschke, "HTTP
               Semantics", RFC 9110, June 2022,
@@ -1002,14 +986,6 @@ Internet-Draft             ApertoID-Signature                August 2026
               Specification", RFC 5905, June 2010,
               <https://www.rfc-editor.org/info/rfc5905>.
 
-
-
-
-Ferro                   Expires 11 February 2027               [Page 18]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
    [RFC6376]  Crocker, D., Hansen, T., and M. Kucherawy, "DomainKeys
               Identified Mail (DKIM) Signatures", RFC 6376, September
               2011, <https://www.rfc-editor.org/info/rfc6376>.
@@ -1026,6 +1002,14 @@ Appendix A.  Full Request/Response Example
    raw public key is pk=ZgUmBeB/kgMsrD8+qlFCfJ7KeRse6RSJnvlL4qQnyGE
    (43-char unpadded Base64, the raw 32-byte key format of [APERTOID-
    DNS], NOT an SPKI wrapping).  The body is the 51-byte string shown;
+
+
+
+Ferro                   Expires 11 February 2027               [Page 18]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
+
    its SHA-256 is the hex value in the signing input.  The sig= value is
    the raw 64-byte Ed25519 signature over the signing input, unpadded
    Base64 (86 characters).  It is shown wrapped for the page but is a
@@ -1058,14 +1042,6 @@ Appendix A.  Full Request/Response Example
    628e22adadb97ae8d0de9bbf50b3556d252763f2d5710c2c6b34\
    2173c1aa4675\n
 
-
-
-
-Ferro                   Expires 11 February 2027               [Page 19]
-
-Internet-Draft             ApertoID-Signature                August 2026
-
-
    (The body_hash line is the 64-hex-char SHA-256 of the
     body, shown wrapped with a trailing "\" continuation;
     it is one line followed by a single LF. The full signing
@@ -1082,6 +1058,14 @@ Internet-Draft             ApertoID-Signature                August 2026
    6. exp= not passed: OK
    7. Reconstruct signing_input with method=POST,
       target=/mcp/tools/search, body_hash=sha256(body)
+
+
+
+Ferro                   Expires 11 February 2027               [Page 19]
+
+Internet-Draft             ApertoID-Signature                August 2026
+
+
    8. Ed25519 verify sig against signing_input with pk: OK
    9. Signature valid -> NOW insert nonce a1b2c3d4e5f6 into
       the cache with expiry t+300
@@ -1106,6 +1090,22 @@ Appendix B.  Implementation Guidance
 
    To maximize adoption, implementations SHOULD provide middleware or
    decorator patterns that require minimal code changes.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

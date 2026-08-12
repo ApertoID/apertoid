@@ -232,6 +232,12 @@ VERIFY_APERTOID_SIGNATURE(request):
       cryptographically-verified result, and returns the DNS-layer
       "pass" (the request is authorized on the URL match alone).
       Steps 7-9a are skipped.
+  6b. (OPTIONAL) If the verifier imposes a maximum request-body
+      size (SHOULD, see Section 6.7) and the body exceeds it:
+      Return "body_too_large". This check, when performed, MUST
+      precede step 7, so that an over-large body is rejected
+      before it is hashed. A verifier that imposes no such limit
+      omits this step.
   7. Reconstruct signing_input from:
      d, s, t, n,
      request.method (uppercase),
@@ -262,6 +268,7 @@ VERIFY_APERTOID_SIGNATURE(request):
           <dt>timestamp_invalid</dt><dd>The timestamp is outside the validity window.</dd>
           <dt>nonce_reused</dt><dd>The nonce was already seen within the validity window.</dd>
           <dt>sig_invalid</dt><dd>The Ed25519 signature does not match the signing input and public key.</dd>
+          <dt>body_too_large</dt><dd>The request body exceeds the maximum size the verifier is willing to hash. This result arises only when a verifier imposes an optional body-size limit (see step 6b of the algorithm above and Section 6.7); a verifier that imposes no limit never returns it.</dd>
         </dl>
         <t>DNS-level results (none, revoked, expired, url_mismatch, key_mismatch, permerror, temperror) are as defined in <xref target="APERTOID-DNS"/>.</t>
       </section>
