@@ -116,23 +116,24 @@ Internet-Draft                  ApertoID                     August 2026
 
      13.5.  Agent Enumeration  . . . . . . . . . . . . . . . . . . .  20
      13.6.  DNS Amplification  . . . . . . . . . . . . . . . . . . .  20
-   14. Privacy Considerations  . . . . . . . . . . . . . . . . . . .  20
-   15. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  20
-     15.1.  Underscore-Scoped Domain Name Registration . . . . . . .  21
-     15.2.  ApertoID Agent Type Registry . . . . . . . . . . . . . .  21
-     15.3.  ApertoID Key Type Registry . . . . . . . . . . . . . . .  21
-   16. References  . . . . . . . . . . . . . . . . . . . . . . . . .  21
-     16.1.  Normative References . . . . . . . . . . . . . . . . . .  22
-     16.2.  Informative References . . . . . . . . . . . . . . . . .  23
-   Appendix A.  Complete Examples  . . . . . . . . . . . . . . . . .  24
-     A.1.  Basic Deployment  . . . . . . . . . . . . . . . . . . . .  24
-     A.2.  Third-Party Delegation  . . . . . . . . . . . . . . . . .  24
-     A.3.  Emergency Revocation and Key Rotation . . . . . . . . . .  24
-   Appendix B.  Integration with Application-Layer Protocols . . . .  25
-   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  25
-   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  26
-   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  27
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  27
+     13.7.  Threat Model and Non-Goals . . . . . . . . . . . . . . .  20
+   14. Privacy Considerations  . . . . . . . . . . . . . . . . . . .  22
+   15. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  22
+     15.1.  Underscore-Scoped Domain Name Registration . . . . . . .  22
+     15.2.  ApertoID Agent Type Registry . . . . . . . . . . . . . .  23
+     15.3.  ApertoID Key Type Registry . . . . . . . . . . . . . . .  23
+   16. References  . . . . . . . . . . . . . . . . . . . . . . . . .  23
+     16.1.  Normative References . . . . . . . . . . . . . . . . . .  23
+     16.2.  Informative References . . . . . . . . . . . . . . . . .  24
+   Appendix A.  Complete Examples  . . . . . . . . . . . . . . . . .  25
+     A.1.  Basic Deployment  . . . . . . . . . . . . . . . . . . . .  26
+     A.2.  Third-Party Delegation  . . . . . . . . . . . . . . . . .  26
+     A.3.  Emergency Revocation and Key Rotation . . . . . . . . . .  26
+   Appendix B.  Integration with Application-Layer Protocols . . . .  26
+   Appendix C.  Changes from -01 . . . . . . . . . . . . . . . . . .  27
+   Appendix D.  Changes from -00 . . . . . . . . . . . . . . . . . .  28
+   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  29
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  29
 
 1.  Introduction
 
@@ -161,7 +162,6 @@ Internet-Draft                  ApertoID                     August 2026
    signatures, and DMARC [RFC9989] unified them with enforcement
    policies.  ApertoID applies the same proven architectural pattern to
    AI agent identity.
-
 
 
 
@@ -1078,10 +1078,16 @@ Internet-Draft                  ApertoID                     August 2026
 13.4.  Delegation Abuse
 
    Attackers may attempt to abuse the delegation mechanism to create
-   excessively long resolution chains or circular references.  The
-   limits defined in Section 8 (maximum depth of 2, maximum 10 lookups)
-   mitigate this risk.  Verifiers MUST enforce these limits and treat
-   violations as permanent errors.
+   excessively long resolution chains, circular references, or to keep a
+   revoked agent alive behind a delegation.  The limits and checks
+   defined in Section 8 bound this risk: the "include" delegation limit,
+   the total-lookup cap, and circular-reference detection together bound
+   the work a single verification can be made to perform, while the per-
+   hop revocation re-check ensures a "status=revoked" record anywhere in
+   the delegation chain is honored rather than bypassed by delegation.
+   Verifiers MUST enforce all of these; a violation of the depth,
+   lookup, or cycle limits is a temporary error ("temperror"), and a
+   revoked record in the chain yields "revoked".
 
 13.5.  Agent Enumeration
 
@@ -1096,6 +1102,99 @@ Internet-Draft                  ApertoID                     August 2026
    bytes), comparable to DKIM key records.  Standard DNS amplification
    mitigations (response rate limiting, BCP 38 source address
    validation) apply.
+
+13.7.  Threat Model and Non-Goals
+
+   This subsection consolidates what ApertoID does and does not defend
+   against, so that deployers can reason about residual risk.  Several
+   limitations are described in more detail elsewhere and are not
+   repeated here: the boundary between authorization-level and identity-
+   level assurance is covered in Section 13.1; and, for deployments that
+   also use the HTTP request signing mechanism, the lack of recipient
+   binding and cross-service replay (the "Action Binding Scope"
+   considerations), the fact that HTTP headers other than method and
+   target are not signed (the "HTTP Headers Not Signed" considerations),
+
+
+
+Ferro                   Expires 11 February 2027               [Page 20]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
+   and header stripping of unsigned requests (the "Signature Stripping"
+   considerations) are covered in the Security Considerations of
+   [APERTOID-SIG].  The threats below are specific to the DNS trust root
+   defined in this document.
+
+   Hostile or compromised resolver: A verifier obtains both the agent's
+   declared URL and its public key from DNS.  A recursive resolver,
+   forwarder, or on-path attacker that can control the answers returned
+   to the verifier can therefore substitute a fraudulent public key (and
+   a matching forged signature) or a fraudulent URL, and the
+   verification will succeed.  This is the same trust dependency that
+   SPF, DKIM, and DMARC place on DNS.  The standard mitigation is DNSSEC
+   (Section 13.2): a verifier that validates DNSSEC will reject forged
+   records, and DNSSEC is REQUIRED for full cryptographic assurance of
+   agent identity.  Verifiers that do not validate DNSSEC obtain only
+   authorization-level assurance and MUST NOT treat a passing result as
+   cryptographic proof of the resolver path.
+
+   Registrar compromise and domain takeover: ApertoID roots all trust in
+   control of the domain's DNS zone.  An attacker who gains control of
+   the zone -- through registrar-account compromise, a malicious or
+   coerced DNS operator, or a successful social-engineering attack
+   against the registrant -- can publish arbitrary ApertoID records,
+   including new agent keys that will verify correctly.  This is
+   inherent to any DNS-based trust anchor and is not something ApertoID
+   can detect or prevent from within the protocol; it mirrors the honest
+   framing in the Trust Domain Discovery work, which accepts the same
+   dependency on the naming and registration system.  ApertoID accepts
+   this as a foundational assumption: whoever controls the zone controls
+   the domain's declared agent identities.  Deployers who require
+   assurance beyond zone control must layer an out-of-band mechanism
+   (for example, registry lock, DNSSEC with offline key management, or
+   Certificate-Transparency-style external monitoring of published
+   records) on top of ApertoID.
+
+   Domain expiry and re-registration: A special case of the previous
+   threat is a domain that lapses and is re-registered by a different
+   party.  The new registrant gains full control of the zone and can
+   publish valid ApertoID records declaring its own agents under the
+   reused name; a verifier has no in-protocol way to distinguish the new
+   owner from the original.  The "prev" key-rotation continuity proof
+   (Section 10.2) does NOT mitigate this: it is OPTIONAL, it only helps
+   a verifier that has cached the previous key, and the takeover path is
+   simply to publish a fresh key with no "prev" tag at all -- a fully
+   conforming record that carries no continuity claim and triggers no
+   discontinuity signal.  (The reference implementation does not
+   currently verify "prev" at all.)  This threat is therefore documented
+   as a residual risk.  Relying parties for whom name reuse is a
+
+
+
+Ferro                   Expires 11 February 2027               [Page 21]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
+   material concern SHOULD combine ApertoID with external signals such
+   as domain-age or registration-change monitoring, which are outside
+   the scope of this document.
+
+   Hostile but legitimately declared agent: ApertoID answers the
+   question "is this agent genuinely declared and, with [APERTOID-SIG],
+   genuinely in possession of the declared key by the claimed domain?"
+   It does NOT answer "should this agent be permitted to perform this
+   particular action?"  A domain's own declared agent that behaves
+   maliciously, or is subverted after declaration, will still
+   authenticate successfully, because authentication attests
+   attribution, not good behavior.  Per-action authorization -- deciding
+   what a correctly-identified agent is allowed to do -- is explicitly
+   out of scope for ApertoID and belongs to a policy or authorization
+   layer above it.  ApertoID provides the verified identity on which
+   such a layer can base its decisions; it does not itself carry or
+   evaluate permissions.
 
 14.  Privacy Considerations
 
@@ -1114,14 +1213,6 @@ Internet-Draft                  ApertoID                     August 2026
 
 15.  IANA Considerations
 
-
-
-
-Ferro                   Expires 11 February 2027               [Page 20]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
 15.1.  Underscore-Scoped Domain Name Registration
 
    This document requests registration of the following entry in the
@@ -1135,6 +1226,13 @@ Internet-Draft                  ApertoID                     August 2026
                 +---------+------------+-----------------+
 
                                  Table 1
+
+
+
+Ferro                   Expires 11 February 2027               [Page 22]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
 15.2.  ApertoID Agent Type Registry
 
@@ -1170,14 +1268,6 @@ Internet-Draft                  ApertoID                     August 2026
 
 16.  References
 
-
-
-
-Ferro                   Expires 11 February 2027               [Page 21]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
 16.1.  Normative References
 
    [RFC1035]  Mockapetris, P., "Domain names - implementation and
@@ -1191,6 +1281,14 @@ Internet-Draft                  ApertoID                     August 2026
    [RFC3986]  Berners-Lee, T., "Uniform Resource Identifier (URI):
               Generic Syntax", RFC 3986, January 2005,
               <https://www.rfc-editor.org/info/rfc3986>.
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 23]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
    [RFC4033]  Arends, R., "DNS Security Introduction and Requirements",
               RFC 4033, March 2005,
@@ -1224,16 +1322,6 @@ Internet-Draft                  ApertoID                     August 2026
               Section in RFCs", RFC 8126, June 2017,
               <https://www.rfc-editor.org/info/rfc8126>.
 
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 22]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
               2119 Key Words", RFC 8174, May 2017,
               <https://www.rfc-editor.org/info/rfc8174>.
@@ -1248,6 +1336,15 @@ Internet-Draft                  ApertoID                     August 2026
    [RFC6376]  Crocker, D., "DomainKeys Identified Mail (DKIM)
               Signatures", RFC 6376, September 2011,
               <https://www.rfc-editor.org/info/rfc6376>.
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 24]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
    [RFC7208]  Kitterman, S., "Sender Policy Framework (SPF)", RFC 7208,
               April 2014, <https://www.rfc-editor.org/info/rfc7208>.
@@ -1281,15 +1378,6 @@ Internet-Draft                  ApertoID                     August 2026
               <https://datatracker.ietf.org/doc/html/draft-klrc-aiagent-
               auth-00>.
 
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 23]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    [I-D.ferro-dnsop-apertodns-protocol]
               Ferro, A., "ApertoDNS Protocol: A Modern Dynamic DNS
               Update Protocol", Work in Progress, Internet-Draft, draft-
@@ -1305,6 +1393,14 @@ Internet-Draft                  ApertoID                     August 2026
               httpbis-apertoid-sig-02>.  Work in progress.
 
 Appendix A.  Complete Examples
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 25]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
 A.1.  Basic Deployment
 
@@ -1336,16 +1432,6 @@ A.2.  Third-Party Delegation
 
 A.3.  Emergency Revocation and Key Rotation
 
-
-
-
-
-
-Ferro                   Expires 11 February 2027               [Page 24]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    ; Step 1: Immediately revoke compromised agent
    leadhunter._apertoid.example.com. 300 IN TXT
      "v=APERTOID1; status=revoked"
@@ -1364,6 +1450,14 @@ Appendix B.  Integration with Application-Layer Protocols
    ApertoID is designed to be protocol-agnostic at the application
    layer.  MCP Server Cards at "/.well-known/mcp/server-card.json"
    provide capability discovery; ApertoID complements MCP by providing
+
+
+
+Ferro                   Expires 11 February 2027               [Page 26]
+
+Internet-Draft                  ApertoID                     August 2026
+
+
    DNS-based verification that a given MCP server is authorized by the
    claimed domain.  A2A Agent Cards at "/.well-known/agent.json" provide
    agent discovery; ApertoID provides a DNS-based trust anchor
@@ -1394,14 +1488,6 @@ Appendix C.  Changes from -01
       include", one hop) disagreed by one level. -02 resolves this in
       favour of TWO hops, preserving the capability the -01 number
       already granted rather than reducing it (a one-hop reading would
-
-
-
-Ferro                   Expires 11 February 2027               [Page 25]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
       have removed something -01 permitted).  Safety at this depth is
       provided not by reducing it but by the other Section 8 limits, all
       unchanged: the per-hop revocation re-check below, circular-
@@ -1410,6 +1496,23 @@ Internet-Draft                  ApertoID                     August 2026
       algorithm refers to Section 8 rather than repeating a number, so
       the two cannot drift.  (An implementer who read -01 as one hop
       will now allow two; hence this is listed as a behavior change.)
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 27]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
    *  REVOCATION OF DELEGATED TARGETS (Sections 8 and 11.2): the
       revocation check (Section 10.1) MUST now be applied to EACH record
@@ -1451,13 +1554,6 @@ Appendix D.  Changes from -00
       characters); the "=" padding character was removed from
       BASE64CHAR.
 
-
-
-Ferro                   Expires 11 February 2027               [Page 26]
-
-Internet-Draft                  ApertoID                     August 2026
-
-
    *  Corrected the "label" production: "ldh-label" is now "alnum"-first
       (a leading digit is permitted), and an "underscore-label"
       alternative was added so underscore-scoped names such as
@@ -1465,6 +1561,14 @@ Internet-Draft                  ApertoID                     August 2026
 
    *  Tightened the whitespace ("*WSP" around ";"), URI-CHAR (added "%";
       excluded ";"), and email-address (RFC 5321 dot-atom) productions.
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 28]
+
+Internet-Draft                  ApertoID                     August 2026
+
 
    *  Clarified that revocation records ("status=revoked") are exempt
       from the "url"-or-"include" requirement; that record type is
@@ -1509,4 +1613,12 @@ Author's Address
 
 
 
-Ferro                   Expires 11 February 2027               [Page 27]
+
+
+
+
+
+
+
+
+Ferro                   Expires 11 February 2027               [Page 29]
