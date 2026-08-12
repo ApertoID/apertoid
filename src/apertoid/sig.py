@@ -197,7 +197,8 @@ def parse_header(header_value: str) -> ParsedHeader:
 
 @dataclass
 class VerifyResult:
-    result: str                 # pass / malformed / timestamp_invalid / ...
+    result: str                 # pass / malformed / timestamp_invalid /
+                                # nonce_reused / body_too_large / sig_invalid
     detail: str = ""
 
 
@@ -210,11 +211,19 @@ def verify(
     current_time: int,
     window: int = 300,
     seen_nonces: Optional[set] = None,
+    max_body_size: Optional[int] = None,
 ) -> VerifyResult:
     """Verify an ApertoID-Signature per Section 4 (crypto + local checks only).
 
     DNS resolution of pk= is out of scope; the caller supplies public_key.
     Steps 5-6 (DNS) are therefore skipped. Nonce cache is an optional set.
+
+    max_body_size, when set, is the maximum request-body length (in bytes) the
+    verifier will hash. A body larger than the limit is rejected ("body_too_large")
+    BEFORE the SHA-256 over the body is computed, so an attacker cannot force the
+    verifier to hash an arbitrarily large body with a request that was never going
+    to verify. Default None means no limit (backwards compatible): the library
+    provides the mechanism, the caller sets the policy.
     """
     ph = parse_header(header_value)
     if not ph.is_valid:
@@ -232,6 +241,16 @@ def verify(
     n = ph.tags["n"]
     if seen_nonces is not None and n in seen_nonces:
         return VerifyResult("nonce_reused", n)
+
+    # Body-size guard: reject an over-large body BEFORE hashing it, so a bogus
+    # request cannot make the verifier do the expensive SHA-256 over an
+    # arbitrarily large body. Placed after the cheap header/timestamp/nonce
+    # checks (which never touch the body) and before construct_signing_input,
+    # the only place the body is hashed. No effect when max_body_size is None.
+    if max_body_size is not None and len(body) > max_body_size:
+        return VerifyResult(
+            "body_too_large", f"body {len(body)} bytes exceeds limit {max_body_size}"
+        )
 
     signing_input = construct_signing_input(
         ph.tags["d"], ph.tags["s"], ph.tags["t"], n, method, target, body

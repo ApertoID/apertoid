@@ -69,6 +69,7 @@ class Outcome(str, Enum):
     MALFORMED = "malformed"
     TIMESTAMP_INVALID = "timestamp_invalid"
     NONCE_REUSED = "nonce_reused"
+    BODY_TOO_LARGE = "body_too_large"
     SIG_INVALID = "sig_invalid"
 
 
@@ -573,14 +574,19 @@ _SIG_OUTCOME = {
     "malformed": Outcome.MALFORMED,
     "timestamp_invalid": Outcome.TIMESTAMP_INVALID,
     "nonce_reused": Outcome.NONCE_REUSED,
+    "body_too_large": Outcome.BODY_TOO_LARGE,
     "sig_invalid": Outcome.SIG_INVALID,
 }
 
-# sig.verify() result string -> step id for the unified result.
+# sig.verify() result string -> step id for the unified result. body_too_large
+# is a local guard applied at the nonce/body stage, before signing-input
+# reconstruction (sig.verify step 7); label it "sig#4b" to sit between the
+# nonce check (sig#4) and signature verification (sig#9).
 _SIG_STEP = {
     "malformed": "sig#2",
     "timestamp_invalid": "sig#3",
     "nonce_reused": "sig#4",
+    "body_too_large": "sig#4b",
     "sig_invalid": "sig#9",
     "pass": "pass",
 }
@@ -597,12 +603,21 @@ def verify_request(
     current_time: int,
     window: int = 300,
     seen_nonces: Optional[set] = None,
+    max_body_size: Optional[int] = None,
 ) -> VerificationResult:
     """Verify a signed HTTP request end to end (-sig Section 4, decision F-5).
 
     Ties the DNS layer (verify_apertoid) to the signature layer (sig.verify).
     Returns a single unified VerificationResult carrying outcome + step + the
     domain's policy p= (F-6).
+
+    max_body_size, when set, caps the request-body length the verifier will
+    hash: a larger body yields outcome=BODY_TOO_LARGE (step "sig#4b") and the
+    body is rejected BEFORE the SHA-256 over it is computed, closing the
+    body-hash DoS vector. Default None means no limit (backwards compatible);
+    the caller owns the policy, as with the injectable resolver and window.
+    The check runs inside sig.verify, so it applies only on the signature path
+    (a DNS-fail or url-only result returns earlier and never hashes the body).
 
     agent_url is the canonical URL the request was RECEIVED on, supplied
     explicitly by the caller (decision F-Q1). It is deliberately NOT
@@ -641,6 +656,7 @@ def verify_request(
         result = sig.verify(
             header_value, _NULL_PUBKEY, method, target, body,
             current_time=current_time, window=window, seen_nonces=seen_nonces,
+            max_body_size=max_body_size,
         )
         return VerificationResult(
             _SIG_OUTCOME.get(result.result, Outcome.MALFORMED),
@@ -696,6 +712,7 @@ def verify_request(
     result = sig.verify(
         header_value, pubkey, method, target, body,
         current_time=current_time, window=window, seen_nonces=seen_nonces,
+        max_body_size=max_body_size,
     )
     return VerificationResult(
         _SIG_OUTCOME.get(result.result, Outcome.MALFORMED),
