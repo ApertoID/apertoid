@@ -481,7 +481,7 @@ are not partial mitigations but carry the whole of it. §13.5 should state this
 consequence of the naming design rather than presenting NSEC3 as covering only
 "zone walking" in the general sense.
 
-## P6 — No comparison entry for MCP DNS Discovery (DNS §2) — external contribution
+## P6 — No comparison entry for MCP DNS Discovery (DNS §2) — external contribution, VERIFIED
 
 **Source:** paragraph supplied by Blake Morrison by email, 13 August 2026,
 offered for inclusion in whatever form fits, with attribution.
@@ -502,18 +502,49 @@ under a domain policy."
 - author: Blake Morrison
 - date: July 2026
 
-**Caveat (important before publishing this as our text):** the technical claims
-in the supplied paragraph — inline Ed25519 key, underscore label, "learns the key
-from DNS rather than fetching it from the endpoint", "binds to an MCP endpoint
-rather than to an agent under a domain policy" — are the AUTHOR's characterisation
-of his own draft. They have NOT been read against the document. A future revision
-MUST verify them against `draft-morrison-mcp-dns-discovery-05` before publishing
-the paragraph as our own comparison text.
+**Verification of the paragraph's three claims (checked against the draft,
+13 August 2026):**
 
-**What a future revision should do:** add the supplied paragraph as a `<dt>` entry
-in §2 (once verified per the caveat) and add the corresponding Informative
-reference entry using the verified metadata above, so the revision does not have
-to re-derive it.
+1. **Ed25519 key published inline in a TXT record under an underscore label —
+   VERIFIED.** The `pk` field is defined as "Ed25519 public key for endpoint
+   verification, encoded as `ed25519:<base64url>` where `<base64url>` is the raw
+   32-byte public key encoded per [RFC4648] Section 5, without padding", in a
+   record at `_mcp.<domain>`.
+2. **Binds to an MCP endpoint — VERIFIED.** The `_mcp` record advertises "the
+   presence, endpoint URL, transport protocol, cryptographic identity, and
+   capability profile of an MCP server associated with a domain name", and the
+   draft states "the pin applies to the MCP endpoint at `mcp.<zone>`".
+3. **A relying party learns the key from DNS rather than fetching it from the
+   endpoint — ACCURATE, with a qualification.** The key is obtained from DNS, so
+   the sentence is accurate as to *where* the key comes from. Qualification worth
+   recording: the same section requires that "Clients MUST verify that the key
+   matches at least one of the following: 1. A key in the server's TLS
+   certificate SubjectPublicKeyInfo". So the DNS key is then checked against the
+   endpoint's TLS certificate — this is DANE-style pinning, which differs from
+   ApertoID's model, where the DNS key verifies a signature the agent produces
+   rather than being pinned to a TLS certificate. This is a NOTE, not a
+   correction: the supplied sentence remains accurate (the key is learned from
+   DNS); the note records that MCP DNS Discovery then pins it to the endpoint's
+   certificate.
+
+**Provenance of the quoted passages (recorded honestly):** the `pk` field
+definition and the client-verification requirement quoted above are the text of
+**Section 5.3.4 of revision 01**, which revision 02 states is "unchanged in this
+revision and incorporated here by reference". The current revision is **05**,
+where the same field appears with the same `ed25519:<base64url>` format. I fetched
+revision 05 from the datatracker (13 August 2026) and confirmed both passages are
+present there — the `pk` field with the same format and the "Clients MUST verify
+... SubjectPublicKeyInfo" requirement — with the field now at **Section 5.3.6**
+(the section moved between 01 and 05). The verbatim strings above are as carried
+from 01 §5.3.4; the 05 fetch confirmed their presence (via the datatracker HTML,
+model-summarised) but I did not transcribe 05's exact wording
+character-for-character, so 01 is cited as the verbatim source and 05 as
+confirming presence.
+
+**What a future revision should do:** add the supplied paragraph as a `<dt>`
+entry in §2, and add the corresponding Informative reference entry using the
+verified metadata above. The DANE-style-pinning note may be worth folding into
+the comparison so the distinction from ApertoID's signature model is explicit.
 
 ## P7 — Erasure bound for a withdrawn signed RRset (DNS §13.7 threat model) — external review, VERIFIED
 
@@ -593,6 +624,6 @@ the qualitative claim without a specific number.
 | P3  | 11.4              | LOW      | "trailing slashes are normalized" under-specified (how many / which side / root≡empty) |
 | P4  | -sig §4; 7.3, 12.1 | MEDIUM  | Signed request to a keyless (url-only) agent unspecified by -sig §4; impl passes on URL auth, signature_verified=False |
 | P5  | 13.5              | —        | External review (Morrison): one-agent-per-name concentrates the whole enumeration surface in the names; NSEC3/unpredictable selectors carry all of it |
-| P6  | 2                 | —        | External contribution (Morrison): add comparison + reference for draft-morrison-mcp-dns-discovery-05; verify its technical claims before publishing as our text |
+| P6  | 2                 | —        | External contribution (Morrison), VERIFIED vs draft-morrison-mcp-dns-discovery-05: inline Ed25519 key under _mcp label, binds to MCP endpoint (DANE-style TLS-cert pin), key learned from DNS; add comparison + reference |
 | P7  | 13.7, 10.1        | —        | External review (Morrison), VERIFIED vs draft-ranjbar-dane-did-01 §9: withdrawn signed RRset replayable up to max(TTL, remaining RRSIG validity) |
 | P8  | 7.4               | —        | Measured: §7.2 example is 130 octets, not the "~170 bytes" §7.4 states; loose over-estimate, not an error |
