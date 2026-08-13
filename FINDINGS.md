@@ -449,6 +449,129 @@ in §11.3 pass could clarify that a `pass` covers URL-only authorization.
 
 ---
 
+# Post-implementation review findings (for a future revision)
+
+> These arose after -02 was published, from measurement and from external
+> review, not from implementing the verifier. -02 is the currently published
+> revision; the draft XML/TXT is NOT modified for these — they are flagged for a
+> future revision. P5 and P6 originate from external review (attributed inline);
+> P7 is external review, verified against its cited source; P8 is a measurement.
+
+## P5 — Enumeration surface is concentrated in the names (DNS §13.5) — external review
+
+**Source:** external review by Blake Morrison (author of
+draft-morrison-mcp-dns-discovery), by email, 13 August 2026. This is his
+observation, not something found in this repository.
+
+**Current §13.5 (verbatim):** "An adversary may attempt to enumerate a domain's
+agents by querying common selector names. Domain owners who wish to limit
+enumeration SHOULD use non-predictable selector names. DNSSEC-signed zones using
+NSEC3 [RFC5155] provide resistance against zone walking."
+
+**The observation (his words):** because ApertoID places each subject at its own
+name (`<selector>._apertoid.<domain>`), the RRset never accumulates, so record
+size is not a constraint — but "the names are the roll, so NSEC3 carries the
+whole enumeration surface there rather than half of it".
+
+**What a future revision should say (analysis):** make explicit that the
+one-agent-per-name design concentrates the ENTIRE enumeration surface in the DNS
+names. Unlike designs that split subjects between names and RRset contents, here
+there is nothing to enumerate but the names, so unpredictable selectors and NSEC3
+are not partial mitigations but carry the whole of it. §13.5 should state this
+consequence of the naming design rather than presenting NSEC3 as covering only
+"zone walking" in the general sense.
+
+## P6 — No comparison entry for MCP DNS Discovery (DNS §2) — external contribution
+
+**Source:** paragraph supplied by Blake Morrison by email, 13 August 2026,
+offered for inclusion in whatever form fits, with attribution.
+
+**Gap:** §2 "Comparison with Existing Approaches" does not cover
+draft-morrison-mcp-dns-discovery.
+
+**Text supplied (verbatim, as offered):** "MCP DNS Discovery
+[I-D.morrison-mcp-dns-discovery] publishes an Ed25519 key inline in a TXT record
+under an underscore label, so a relying party learns the key from DNS rather than
+fetching it from the endpoint. It binds to an MCP endpoint rather than to an agent
+under a domain policy."
+
+**Reference metadata (verified from the IETF datatracker, 13 August 2026):**
+
+- full name / current revision: `draft-morrison-mcp-dns-discovery-05`
+- title: "Discovery of Model Context Protocol Servers via DNS TXT Records"
+- author: Blake Morrison
+- date: July 2026
+
+**Caveat (important before publishing this as our text):** the technical claims
+in the supplied paragraph — inline Ed25519 key, underscore label, "learns the key
+from DNS rather than fetching it from the endpoint", "binds to an MCP endpoint
+rather than to an agent under a domain policy" — are the AUTHOR's characterisation
+of his own draft. They have NOT been read against the document. A future revision
+MUST verify them against `draft-morrison-mcp-dns-discovery-05` before publishing
+the paragraph as our own comparison text.
+
+**What a future revision should do:** add the supplied paragraph as a `<dt>` entry
+in §2 (once verified per the caveat) and add the corresponding Informative
+reference entry using the verified metadata above, so the revision does not have
+to re-derive it.
+
+## P7 — Erasure bound for a withdrawn signed RRset (DNS §13.7 threat model) — external review, VERIFIED
+
+**Source:** raised by Blake Morrison by email, 13 August 2026, citing
+draft-ranjbar-dane-did.
+
+**Current threat-model text (§13.7)** treats a published record as
+non-retractable in the general case (the domain-expiry / residual-risk paragraph
+states, qualitatively, that a published record cannot be recalled).
+
+**The claim:** a withdrawn DNSSEC-signed RRset stays replayable until the larger of
+its TTL and its remaining signature validity, because a signed RRset cannot be
+securely revoked before its signatures expire.
+
+**Verification:** VERIFIED against Section 9 ("Revocation") of
+`draft-ranjbar-dane-did-01`, read from the IETF datatracker on 13 August 2026,
+which states (verbatim): "a withdrawn RRset remains replayable to any verifier not
+querying the authoritative path until the RRSIG validity period ends";
+"revocation latency under this profile is therefore bounded by the larger of the
+record's TTL and the remaining signature validity"; and "a DNSSEC-signed RRset
+cannot be securely revoked before its signatures expire." (I read the `-01`
+revision as cited; I did not check whether a later revision renumbers the section.
+Quotes are from the datatracker HTML rendering.)
+
+**What a future revision should say (analysis):** turn the qualitative "a published
+record cannot be recalled" into a stated interval — a withdrawn or revoked record
+can remain replayable, to any verifier not querying the authoritative path, for up
+to the larger of its TTL and its remaining RRSIG validity. This bounds the
+revocation window in §10.1 / §13.7 with a concrete figure rather than an
+open-ended statement.
+
+## P8 — §7.4 record-size figure is a loose over-estimate (DNS §7.4) — measurement
+
+**Source:** measured in this repository, 13 August 2026.
+
+**Current §7.4 (verbatim):** "A typical Agent Declaration Record with all
+recommended fields is approximately 170 bytes, fitting comfortably within a single
+255-byte TXT character-string and well within the practical UDP DNS response size
+limit."
+
+**Measured:** the §7.2 worked example carries all six fields (`v`, `url`, `k`, `pk`,
+`exp`, `type`):
+
+```
+v=APERTOID1; url=https://agent.example.com/mcp; k=ed25519; pk=2TmyMjizLUEeS0F9GJvGedF4syZFYvrWl+oFHv56VSY; type=ai; exp=1759276800
+```
+
+It measures **130 octets** as written (single space after each `;`), or 125
+without the optional spaces after each `;`.
+
+**Assessment (analysis):** "approximately 170 bytes" is a loose over-estimate, not
+an error — the conclusion it supports (fits comfortably in one 255-octet
+character-string) holds either way, since 130 is about half the limit. A future
+revision could replace "approximately 170 bytes" with the measured figure, or keep
+the qualitative claim without a specific number.
+
+---
+
 ## Summary table
 
 | ID  | Section(s)         | Severity | One-liner |
@@ -469,3 +592,7 @@ in §11.3 pass could clarify that a `pass` covers URL-only authorization.
 | P2  | 8                 | LOW      | "max depth 2" vs "(original + one include)" ambiguous; -02 resolves as 2 include hops (keep -01 capability, safe via per-hop revocation + cycle + ≤10 budget) |
 | P3  | 11.4              | LOW      | "trailing slashes are normalized" under-specified (how many / which side / root≡empty) |
 | P4  | -sig §4; 7.3, 12.1 | MEDIUM  | Signed request to a keyless (url-only) agent unspecified by -sig §4; impl passes on URL auth, signature_verified=False |
+| P5  | 13.5              | —        | External review (Morrison): one-agent-per-name concentrates the whole enumeration surface in the names; NSEC3/unpredictable selectors carry all of it |
+| P6  | 2                 | —        | External contribution (Morrison): add comparison + reference for draft-morrison-mcp-dns-discovery-05; verify its technical claims before publishing as our text |
+| P7  | 13.7, 10.1        | —        | External review (Morrison), VERIFIED vs draft-ranjbar-dane-did-01 §9: withdrawn signed RRset replayable up to max(TTL, remaining RRSIG validity) |
+| P8  | 7.4               | —        | Measured: §7.2 example is 130 octets, not the "~170 bytes" §7.4 states; loose over-estimate, not an error |
