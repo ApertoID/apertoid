@@ -2,7 +2,7 @@
 
 Unlike test_draft_examples.py (which hardcodes record strings), this harness
 extracts the record examples *directly from the draft source* -- the .txt
-rendering of draft-ferro-dnsop-apertoid-02 -- reassembles each multi-line
+rendering of draft-ferro-dnsop-apertoid-03 -- reassembles each multi-line
 "...IN TXT" record into its single logical TXT string, and runs the Layer 1
 parser over it. It is the end-to-end check for FINDINGS F1/F2: after the fix,
 NO agent-declaration example may fail to parse.
@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from apertoid import parse_record, RecordType  # noqa: E402
 
 DRAFT_TXT = (
-    Path(__file__).resolve().parents[1] / "spec" / "draft-ferro-dnsop-apertoid-02.txt"
+    Path(__file__).resolve().parents[1] / "spec" / "draft-ferro-dnsop-apertoid-03.txt"
 )
 
 

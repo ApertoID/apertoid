@@ -7,7 +7,7 @@
 ]>
 <rfc xmlns:xi="http://www.w3.org/2001/XInclude"
      ipr="trust200902"
-     docName="draft-ferro-dnsop-apertoid-02"
+     docName="draft-ferro-dnsop-apertoid-03"
      category="std"
      consensus="true"
      submissionType="IETF"
@@ -16,7 +16,7 @@
 
   <front>
     <title abbrev="ApertoID">ApertoID: DNS-Based Agent Identity Declaration Protocol</title>
-    <seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertoid-02"/>
+    <seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertoid-03"/>
     <author fullname="Andrea Ferro" initials="A." surname="Ferro">
       <organization>ApertoID</organization>
       <address>
@@ -25,7 +25,7 @@
         <uri>https://github.com/ApertoID</uri>
       </address>
     </author>
-    <date year="2026" month="August" day="10"/>
+    <date year="2026" month="August" day="13"/>
     <area>Operations and Management</area>
     <workgroup>DNSOP</workgroup>
     <keyword>DNS</keyword><keyword>AI Agent</keyword><keyword>Identity</keyword><keyword>Authentication</keyword><keyword>Ed25519</keyword><keyword>MCP</keyword>
@@ -57,6 +57,7 @@
       <dl>
         <dt>DANE (RFC 6698)</dt><dd>DANE <xref target="RFC6698"/> authenticates TLS certificates for servers via TLSA DNS records. However, DANE binds identity to a TLS endpoint (server), not to an agent. Multiple agents may share a server, and a single agent may operate across multiple servers. ApertoID binds identity to the agent itself, independent of the underlying TLS infrastructure.</dd>
         <dt>DNS-AID (draft-mozleywilliams-dnsop-dnsaid)</dt><dd>DNS-AID <xref target="I-D.mozleywilliams-dnsop-dnsaid"/> provides DNS-based discovery of agents associated with a domain, primarily using SVCB records (and optionally DNSSEC and DANE TLSA records for endpoint security). It answers "what agents does this domain have?" Its cryptographic material authenticates connection endpoints rather than binding an identity to a specific agent, and it does not define domain-level enforcement policies. ApertoID answers "is this specific agent genuinely authorized by this domain?" and pairs that with a policy record. The two are complementary.</dd>
+        <dt>MCP DNS Discovery (draft-morrison-mcp-dns-discovery)</dt><dd>MCP DNS Discovery <xref target="I-D.morrison-mcp-dns-discovery"/> publishes an Ed25519 key inline in a TXT record under an underscore label, so a relying party learns the key from DNS rather than fetching it from the endpoint. It binds to an MCP endpoint rather than to an agent under a domain policy.</dd>
         <dt>AI Agent Authentication and Authorization (draft-klrc-aiagent-auth)</dt><dd>This work <xref target="I-D.klrc-aiagent-auth"/> describes best practices for authenticating and authorizing AI agent interactions by composing existing standards such as SPIFFE, WIMSE, and OAuth 2.0. It operates at the layer of credentials and authorization flows between agents and services. ApertoID operates at a different layer: a DNS-published, domain-level declaration of which agents a domain authorizes, verifiable by a party starting from only the domain name. A token-based framework of this kind can use an ApertoID declaration as a domain-level anchor for the agents it authenticates.</dd>
         <dt>HTTP Message Signatures (RFC 9421)</dt><dd>HTTP Message Signatures <xref target="RFC9421"/> provide a general-purpose HTTP signing framework. ApertoID-Signature (defined in the companion document <xref target="APERTOID-SIG"/>) is a deliberately simplified, single-purpose mechanism optimized for AI agent identity verification with Ed25519 only. It is designed to be implementable in minimal code without requiring the full complexity of RFC 9421's component identifiers and algorithm negotiation.</dd>
         <dt>WIMSE workload identity (draft-ietf-wimse-arch)</dt><dd>The WIMSE architecture <xref target="I-D.ietf-wimse-arch"/> describes workload credentials -- the Workload Identity Token and the Workload Identity Certificate, defined in the companion WIMSE service-to-service protocol -- whose identifiers are scoped within a trust domain; the architecture states that the protocol for obtaining credentials varies with deployment. The primary difference from ApertoID is how trust is established between the parties, not whether the parties are in the same organization. In WIMSE, a relying party validates a credential using the trust anchors and issuer configuration it holds for the credential's trust domain, obtained through a secure mechanism. In ApertoID, a relying party starts from nothing but the domain name and reads the domain's public DNS declaration, with no issuance step and no prior configuration on either side. The two are complementary: a workload may hold a WIMSE credential for its identity within a trust domain and, separately, be publicly declared by a domain via ApertoID so that parties which share no trust configuration with that domain can still verify the declaration.</dd>
@@ -235,7 +236,7 @@ leadhunter._apertoid.example.com. 3600 IN TXT
    k=ed25519; pk=2TmyMjizLUEeS0F9GJvGedF4syZFYvrWl+oFHv56VSY;
    type=ai; exp=1759276800"
 ]]></artwork>
-        <t>Note: The record above is shown on multiple lines for readability. In practice, it is a single TXT record string. If the record exceeds 255 bytes, it MUST be split into multiple character-strings within a single TXT RDATA as specified in <xref target="RFC1035"/> Section 3.3.14.</t>
+        <t>Note: The record above is shown on multiple lines for readability. In practice, it is a single TXT record string. If the record exceeds 255 octets, it MUST be split into multiple character-strings within a single TXT RDATA as specified in <xref target="RFC1035"/> Section 3.3.14.</t>
       </section>
       <section anchor="agent-tags">
         <name>Agent Declaration Tags</name>
@@ -255,7 +256,7 @@ leadhunter._apertoid.example.com. 3600 IN TXT
       </section>
       <section anchor="agent-size">
         <name>Record Size Considerations</name>
-        <t>A typical Agent Declaration Record with all recommended fields is approximately 170 bytes, fitting comfortably within a single 255-byte TXT character-string and well within the practical UDP DNS response size limit. Each agent has its own record at a distinct DNS name, so the number of agents per domain is not constrained by record size.</t>
+        <t>A typical Agent Declaration Record with all recommended fields (v, url, k, pk, exp, and type) fits within a single 255-octet TXT character-string, with room to spare, and well within the practical UDP DNS response size limit. A record additionally carrying a "prev" key-rotation signature is larger; the examples in this document remain within a single character-string, and any record that does exceed 255 octets is split into multiple character-strings as described in <xref target="agent-syntax-ex"/>. Each agent has its own record at a distinct DNS name, so the number of agents per domain is not constrained by record size.</t>
       </section>
     </section>
 
@@ -319,7 +320,7 @@ leadhunter._apertoid.example.com. 3600 IN TXT
   "prev=sig:bxX1qXatIGHLYDyXAZw6T2VIAWGBuwkNxGHyYJO+UPO2uWPI"
   "35gzIdsi9tg1xa6Y0lUW3PDcZJ9b6OYPMjEgDQ; type=ai; exp=1762000000"
 ]]></artwork>
-        <t>This record exceeds 255 octets once the "prev" signature is included, so it is shown as multiple TXT character-strings; per <xref target="RFC1035"/> Section 3.3.14 the character-strings are concatenated with no separator to form the single logical record, and the split point (mid-value, inside the Base64 signature) carries no semantics.</t>
+        <t>The record is shown here as multiple TXT character-strings for readability; a record carrying a "prev" signature may be split this way, and any record that exceeds a single 255-octet character-string MUST be. Per <xref target="RFC1035"/> Section 3.3.14 the character-strings are concatenated with no separator to form the single logical record, and the split point (mid-value, inside the Base64 signature) carries no semantics.</t>
         <t>The "prev" tag value is constructed as follows: (1) Let "new_pubkey" be the raw 32-byte new Ed25519 public key. (2) Sign "new_pubkey" using the old Ed25519 private key, producing a 64-byte signature. (3) Encode the signature as unpadded Base64. (4) Prepend "sig:" to form the "prev" tag value.</t>
         <t>Verifiers that have cached the previous public key SHOULD verify the "prev" signature to confirm that the key rotation was authorized by the holder of the previous key. If the "prev" signature is invalid, verifiers SHOULD treat this as a potential key compromise and apply the domain's enforcement policy.</t>
         <t>The "prev" tag is OPTIONAL. When absent, verifiers accept the new key based solely on DNS authority (i.e., the domain owner's control of the DNS zone).</t>
@@ -349,7 +350,7 @@ VERIFY_APERTOID(claimed_domain, selector, agent_url, agent_pubkey):
   7. If status=revoked:
        Return result="revoked", apply policy p=
   8. If record contains include= tag:
-       Follow delegation (see Section 8 for the limits). For EACH
+       Follow delegation, subject to the limits below. For EACH
        record resolved through an include= reference, re-apply
        step 7: if a resolved record has status=revoked, Return
        result="revoked", apply policy p= (a revoked delegation
@@ -361,20 +362,20 @@ VERIFY_APERTOID(claimed_domain, selector, agent_url, agent_pubkey):
   9. Check exp= timestamp:
        If exp= is present and current_time > exp:
          Return result="expired", apply policy p=
-       (A record with no exp= does not expire at the DNS layer;
-        see Section 7.3.)
-  10. Compare agent_url with record url= value:
-       Match rules per Section 11.4.
+       (A record with no exp= does not expire at the DNS layer.)
+  10. Compare agent_url with record url= value, per the URL
+       matching rules.
        If no match: Return result="url_mismatch",
          apply policy p=
   11. If record contains a pk= tag AND agent_pubkey is provided:
        Compare agent_pubkey with record pk= value
        (the key type is that of k=, defaulting to ed25519 when
-        k= is absent; see Section 7.3)
+        k= is absent).
        If mismatch: Return result="key_mismatch",
          apply policy p=
   12. Return result="pass"
 ]]></artwork>
+        <t>The steps above reference detail defined elsewhere in this document: the delegation limits applied in step 8 are those of <xref target="delegation"/>; the treatment of a record with no exp= (step 9) and the default key type when k= is absent (step 11) are defined in <xref target="agent-tags"/>; and the URL matching rules used in step 10 are specified in <xref target="url-matching"/>.</t>
       </section>
       <section anchor="verification-results">
         <name>Result Values</name>
@@ -426,7 +427,7 @@ VERIFY_APERTOID(claimed_domain, selector, agent_url, agent_pubkey):
       </section>
       <section anchor="sec-key-compromise">
         <name>Key Compromise</name>
-        <t>If an agent's Ed25519 private key is compromised, the domain owner MUST immediately publish a revocation record (<xref target="immediate-revocation"/>) with a low TTL (300 seconds). The window of vulnerability equals the TTL of the previously cached Agent Declaration Record. Domain owners SHOULD use TTL values no higher than 3600 seconds to limit the maximum vulnerability window to one hour.</t>
+        <t>If an agent's Ed25519 private key is compromised, the domain owner MUST immediately publish a revocation record (<xref target="immediate-revocation"/>) with a low TTL (300 seconds). The window of vulnerability equals the TTL of the previously cached Agent Declaration Record. Domain owners SHOULD use TTL values no higher than 3600 seconds to limit the maximum vulnerability window to one hour. In a DNSSEC-signed zone this window is bounded not by the TTL alone but by the larger of the TTL and the remaining validity of the record's RRSIG signatures: a DNSSEC-signed RRset cannot be securely revoked before its signatures expire, so a withdrawn or revoked record can remain replayable to a verifier not querying the authoritative path until that signature validity ends <xref target="I-D.ranjbar-dane-did"/>.</t>
       </section>
       <section anchor="sec-delegation-abuse">
         <name>Delegation Abuse</name>
@@ -434,11 +435,11 @@ VERIFY_APERTOID(claimed_domain, selector, agent_url, agent_pubkey):
       </section>
       <section anchor="sec-enumeration">
         <name>Agent Enumeration</name>
-        <t>An adversary may attempt to enumerate a domain's agents by querying common selector names. Domain owners who wish to limit enumeration SHOULD use non-predictable selector names. DNSSEC-signed zones using NSEC3 <xref target="RFC5155"/> provide resistance against zone walking.</t>
+        <t>An adversary may attempt to enumerate a domain's agents by querying common selector names. Because ApertoID places each agent at its own DNS name, the set of declared agents is expressed in the DNS names rather than in the contents of any record, and the enumeration surface lies entirely there. Domain owners who wish to limit enumeration SHOULD use non-predictable selector names; DNSSEC-signed zones using NSEC3 <xref target="RFC5155"/> resist zone walking. Because nothing else conceals the set, these two measures carry all of it.</t>
       </section>
       <section anchor="sec-dns-amplification">
         <name>DNS Amplification</name>
-        <t>ApertoID records are TXT records of moderate size (typically 170-250 bytes), comparable to DKIM key records. Standard DNS amplification mitigations (response rate limiting, BCP 38 source address validation) apply.</t>
+        <t>ApertoID records are TXT records of moderate size, comparable to DKIM key records, and small relative to the responses that make reflection or amplification attractive. Standard DNS amplification mitigations (response rate limiting, BCP 38 source address validation) apply.</t>
       </section>
       <section anchor="sec-threat-model">
         <name>Threat Model and Non-Goals</name>
@@ -446,6 +447,7 @@ VERIFY_APERTOID(claimed_domain, selector, agent_url, agent_pubkey):
         <t>Hostile or compromised resolver: A verifier obtains both the agent's declared URL and its public key from DNS. A recursive resolver, forwarder, or on-path attacker that can control the answers returned to the verifier can therefore substitute a fraudulent public key (and a matching forged signature) or a fraudulent URL, and the verification will succeed. This is the same trust dependency that SPF, DKIM, and DMARC place on DNS. The standard mitigation is DNSSEC (<xref target="sec-dnssec"/>): a verifier that validates DNSSEC will reject forged records, and DNSSEC is REQUIRED for full cryptographic assurance of agent identity. Verifiers that do not validate DNSSEC obtain only authorization-level assurance and MUST NOT treat a passing result as cryptographic proof of the resolver path.</t>
         <t>Registrar compromise and domain takeover: ApertoID roots all trust in control of the domain's DNS zone. An attacker who gains control of the zone -- through registrar-account compromise, a malicious or coerced DNS operator, or a successful social-engineering attack against the registrant -- can publish arbitrary ApertoID records, including new agent keys that will verify correctly. This is inherent to any DNS-based trust anchor and is not something ApertoID can detect or prevent from within the protocol; it mirrors the honest framing in the Trust Domain Discovery work, which accepts the same dependency on the naming and registration system. ApertoID accepts this as a foundational assumption: whoever controls the zone controls the domain's declared agent identities. Deployers who require assurance beyond zone control must layer an out-of-band mechanism (for example, registry lock, DNSSEC with offline key management, or Certificate-Transparency-style external monitoring of published records) on top of ApertoID.</t>
         <t>Domain expiry and re-registration: A special case of the previous threat is a domain that lapses and is re-registered by a different party. The new registrant gains full control of the zone and can publish valid ApertoID records declaring its own agents under the reused name; a verifier has no in-protocol way to distinguish the new owner from the original. The "prev" key-rotation continuity proof (<xref target="key-rotation"/>) does NOT mitigate this: it is OPTIONAL, it only helps a verifier that has cached the previous key, and the takeover path is simply to publish a fresh key with no "prev" tag at all -- a fully conforming record that carries no continuity claim and triggers no discontinuity signal. (The reference implementation does not currently verify "prev" at all.) This threat is therefore documented as a residual risk. Relying parties for whom name reuse is a material concern SHOULD combine ApertoID with external signals such as domain-age or registration-change monitoring, which are outside the scope of this document.</t>
+        <t>Revocation latency: withdrawing or revoking a record does not take effect instantly for every verifier. As stated in <xref target="sec-key-compromise"/>, in a DNSSEC-signed zone a withdrawn or revoked record can remain replayable to a verifier not querying the authoritative path for up to the larger of its TTL and its remaining RRSIG validity, because a DNSSEC-signed RRset cannot be securely revoked before its signatures expire. Relying parties requiring immediate revocation cannot obtain it from record withdrawal alone within that interval.</t>
         <t>Hostile but legitimately declared agent: ApertoID answers the question "is this agent genuinely declared and, with <xref target="APERTOID-SIG"/>, genuinely in possession of the declared key by the claimed domain?" It does NOT answer "should this agent be permitted to perform this particular action?" A domain's own declared agent that behaves maliciously, or is subverted after declaration, will still authenticate successfully, because authentication attests attribution, not good behavior. Per-action authorization -- deciding what a correctly-identified agent is allowed to do -- is explicitly out of scope for ApertoID and belongs to a policy or authorization layer above it. ApertoID provides the verified identity on which such a layer can base its decisions; it does not itself carry or evaluate permissions.</t>
       </section>
     </section>
@@ -523,6 +525,8 @@ VERIFY_APERTOID(claimed_domain, selector, agent_url, agent_pubkey):
         <reference anchor="I-D.klrc-aiagent-auth"><front><title>AI Agent Authentication and Authorization</title><author initials="P." surname="Kasselman"/><author initials="J." surname="Lombardo"/><author initials="Y." surname="Rosomakho"/><author initials="B." surname="Campbell"/><author initials="N." surname="Steele"/><author initials="A." surname="Parecki"/><date year="2026" month="July"/></front><seriesInfo name="Internet-Draft" value="draft-klrc-aiagent-auth-03"/></reference>
         <reference anchor="I-D.ietf-wimse-arch"><front><title>Workload Identity in a Multi System Environment (WIMSE) Architecture</title><author initials="J." surname="Salowey"/><author initials="Y." surname="Rosomakho"/><author initials="H." surname="Tschofenig"/><date year="2026" month="July"/></front><seriesInfo name="Internet-Draft" value="draft-ietf-wimse-arch-08"/></reference>
         <reference anchor="I-D.schwenkschuster-wimse-trust-domain-discovery"><front><title>WIMSE Trust Domain Discovery</title><author initials="A." surname="Schwenkschuster"/><author initials="Y." surname="Rosomakho"/><date year="2026" month="July"/></front><seriesInfo name="Internet-Draft" value="draft-schwenkschuster-wimse-trust-domain-discovery-00"/></reference>
+        <reference anchor="I-D.morrison-mcp-dns-discovery"><front><title>Discovery of Model Context Protocol Servers via DNS TXT Records</title><author initials="B." surname="Morrison"/><date year="2026" month="July"/></front><seriesInfo name="Internet-Draft" value="draft-morrison-mcp-dns-discovery-05"/></reference>
+        <reference anchor="I-D.ranjbar-dane-did"><front><title>Rooting Decentralized Identifiers in DNSSEC: A DANE-EE Key-Binding Profile</title><author initials="K." surname="Ranjbar"/><author initials="A. A." surname="Aravind"/><date year="2026" month="August"/></front><seriesInfo name="Internet-Draft" value="draft-ranjbar-dane-did-01"/></reference>
         <reference anchor="I-D.ferro-dnsop-apertodns-protocol"><front><title>ApertoDNS Protocol: A Modern Dynamic DNS Update Protocol</title><author initials="A." surname="Ferro"/><date year="2026" month="January"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-dnsop-apertodns-protocol-02"/></reference>
         <reference anchor="APERTOID-SIG"><front><title>ApertoID-Signature: HTTP Request Signing for AI Agent Identity</title><author initials="A." surname="Ferro"/><date year="2026"/></front><seriesInfo name="Internet-Draft" value="draft-ferro-httpbis-apertoid-sig-02"/><annotation>Work in progress.</annotation></reference>
       </references>
@@ -585,23 +589,38 @@ leadhunter._apertoid.example.com. 3600 IN TXT
       <t>ApertoID is designed to be protocol-agnostic at the application layer. MCP Server Cards at "/.well-known/mcp/server-card.json" provide capability discovery; ApertoID complements MCP by providing DNS-based verification that a given MCP server is authorized by the claimed domain. A2A Agent Cards at "/.well-known/agent.json" provide agent discovery; ApertoID provides a DNS-based trust anchor independent of the agent's self-declared card. DNS-AID <xref target="I-D.mozleywilliams-dnsop-dnsaid"/> provides DNS-based agent discovery; ApertoID provides authorization and identity verification. The two are complementary: DNS-AID answers "what agents does this domain have?" while ApertoID answers "is this agent genuinely authorized by this domain?"</t>
     </section>
 
+    <section anchor="changes-02">
+      <name>Changes from -02</name>
+      <t>This appendix is non-normative and summarizes the changes made in this revision. All of them are clarifications or corrections identified after -02 was published; several arose from external review.</t>
+      <t>Clarifications (no change in conforming behavior intended):</t>
+      <ul>
+        <li>Agent enumeration (Section 14.5). The text now states that, because each agent is published at its own DNS name, the enumeration surface lies entirely in the names, so non-predictable selectors and NSEC3 carry all of it. Raised in external review by the author of draft-morrison-mcp-dns-discovery.</li>
+        <li>Revocation latency (Sections 14.3 and 14.7). Section 14.3 is corrected: in a DNSSEC-signed zone the post-revocation window is bounded by the larger of the record's TTL and its remaining RRSIG validity, not by the TTL alone, because a DNSSEC-signed RRset cannot be securely revoked before its signatures expire (<xref target="I-D.ranjbar-dane-did"/>). Section 14.7 adds this as a distinct threat. Raised in external review.</li>
+        <li>Record size (Sections 8.4, 11.2, 14.6). Specific size figures are removed in favour of qualitative statements: the "approximately 170 bytes" figure in Section 8.4 and the "170-250 bytes" range in Section 14.6 are dropped, and the Section 11.2 statement that a rotation record "exceeds 255 octets" is corrected, since the rotation examples in this document in fact fit within a single 255-octet character-string. The size limit is now expressed as "octets" throughout (Section 8.2 previously said "bytes").</li>
+      </ul>
+      <t>Comparison with existing approaches (Section 2):</t>
+      <ul>
+        <li>An entry is added for MCP DNS Discovery <xref target="I-D.morrison-mcp-dns-discovery"/>, contributed by its author, with a corresponding Informative reference.</li>
+      </ul>
+    </section>
+
     <section anchor="changes-01">
       <name>Changes from -01</name>
       <t>This appendix is non-normative and summarizes the changes made in this revision.</t>
       <t>Normative changes (a verifier conforming to -01 may behave differently):</t>
       <ul>
-        <li>Delegation limit (Section 8). The limit on "include" delegation is stated unambiguously: a verifier follows at most two "include" delegations (the original record plus up to two delegated targets), and a chain requiring a third hop yields "temperror". The limit is now stated only in Section 8; the Section 11.2 algorithm refers to it rather than restating a number.</li>
-        <li>Revocation across delegation (Sections 8 and 11.2). The "status=revoked" check now applies to every record resolved through an "include" reference, not only the original record; a revoked record anywhere in a delegation chain makes the agent unauthorized and stops the chain.</li>
+        <li>Delegation limit (Section 9). The limit on "include" delegation is stated unambiguously: a verifier follows at most two "include" delegations (the original record plus up to two delegated targets), and a chain requiring a third hop yields "temperror". The limit is now stated only in Section 9; the Section 12.2 algorithm refers to it rather than restating a number.</li>
+        <li>Revocation across delegation (Sections 9 and 12.2). The "status=revoked" check now applies to every record resolved through an "include" reference, not only the original record; a revoked record anywhere in a delegation chain makes the agent unauthorized and stops the chain.</li>
       </ul>
       <t>Clarifications (no change in conforming behavior intended):</t>
       <ul>
-        <li>URL matching (Section 11.4). Trailing-slash normalization is specified exactly: trailing "/" characters are removed from the path of both URLs before the case-sensitive comparison, so "/x", "/x/", and "/x//" compare equal and a root path equals an empty path; interior slashes are unchanged.</li>
-        <li>Delegation abuse (Section 13.4). The security consideration is aligned with Section 8: it references the delegation limit rather than restating it, attributes the mitigation to the combination of that limit, cycle detection, and per-hop revocation re-checking, and states the correct result values ("temperror" for a limit or cycle violation, "revoked" for a revoked record in the chain).</li>
+        <li>URL matching (Section 12.4). Trailing-slash normalization is specified exactly: trailing "/" characters are removed from the path of both URLs before the case-sensitive comparison, so "/x", "/x/", and "/x//" compare equal and a root path equals an empty path; interior slashes are unchanged.</li>
+        <li>Delegation abuse (Section 14.4). The security consideration is aligned with Section 9: it references the delegation limit rather than restating it, attributes the mitigation to the combination of that limit, cycle detection, and per-hop revocation re-checking, and states the correct result values ("temperror" for a limit or cycle violation, "revoked" for a revoked record in the chain).</li>
       </ul>
       <t>New material:</t>
       <ul>
         <li>Applicability (new section). States where ApertoID is and is not the appropriate mechanism: it fits open-web agent identity where parties share no prior trust configuration and the publishing side operates only DNS; it is not the mechanism where an issuance-based system already establishes trust between the parties, where per-action authorization is required, where full message integrity is required, or where DNS is not an acceptable trust anchor.</li>
-        <li>Threat Model and Non-Goals (new subsection of Section 13). Consolidates the residual threats: a hostile or compromised resolver, registrar compromise and domain takeover, domain expiry and re-registration, and a hostile but legitimately declared agent. It points to the DNSSEC and authorization-versus-identity considerations rather than repeating them.</li>
+        <li>Threat Model and Non-Goals (new subsection of Section 14). Consolidates the residual threats: a hostile or compromised resolver, registrar compromise and domain takeover, domain expiry and re-registration, and a hostile but legitimately declared agent. It points to the DNSSEC and authorization-versus-identity considerations rather than repeating them.</li>
       </ul>
       <t>Comparison with existing approaches (Section 2):</t>
       <ul>
@@ -621,7 +640,7 @@ leadhunter._apertoid.example.com. 3600 IN TXT
       <name>Changes from -00</name>
       <t>This appendix is non-normative and summarizes the changes made in the -01 revision.</t>
       <ul>
-        <li>Corrected the Section 5.1 ABNF: the "pk" public key is a raw 32-byte Ed25519 key in unpadded Base64 (exactly 43 characters, not an SPKI wrapping), and "prev" signatures are 64 bytes unpadded (86 characters); the "=" padding character was removed from BASE64CHAR.</li>
+        <li>Corrected the Section 6.1 ABNF: the "pk" public key is a raw 32-byte Ed25519 key in unpadded Base64 (exactly 43 characters, not an SPKI wrapping), and "prev" signatures are 64 bytes unpadded (86 characters); the "=" padding character was removed from BASE64CHAR.</li>
         <li>Corrected the "label" production: "ldh-label" is now "alnum"-first (a leading digit is permitted), and an "underscore-label" alternative was added so underscore-scoped names such as "_apertoid" include targets are grammatical.</li>
         <li>Tightened the whitespace ("*WSP" around ";"), URI-CHAR (added "%"; excluded ";"), and email-address (RFC 5321 dot-atom) productions.</li>
         <li>Clarified that revocation records ("status=revoked") are exempt from the "url"-or-"include" requirement; that record type is determined by the DNS query name, not by content; that duplicate known tags are a "permerror"; and that "pk" may appear without "k".</li>
