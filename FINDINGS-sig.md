@@ -1,16 +1,24 @@
-# ApertoID-Signature spec findings — draft-ferro-httpbis-apertoid-sig-00
+# ApertoID-Signature spec findings — draft-ferro-httpbis-apertoid-sig
 
 Ambiguities, contradictions, and bugs found while implementing the signing and
 verification mechanism **strictly from the -sig draft** (Sections 2-4 and the
 appendices). Same method and format as the DNS-draft `FINDINGS.md`: each item
 cites the section, states the conflict, shows how the reference implementation
-behaves, and proposes a fix. Severity is from an implementer's standpoint.
+behaves, and records the fix. Severity is from an implementer's standpoint.
 
 IDs are `S1`..`Sn` to keep them distinct from the DNS draft's `F1`..`F12`.
 
-Nothing here is fixed and the draft source is untouched — this is diagnosis
-only. The reference implementation is `src/apertoid/sig.py`; the draft-example
-diagnosis harness is `tests/test_sig_draft_examples.py`.
+> REVISION STATUS (2026-08-14): These findings have been APPLIED — both to the
+> -sig draft and to the reference implementation. The -sig draft in this
+> repository is **draft-ferro-httpbis-apertoid-sig-02**, which is also the
+> revision **published at the IETF datatracker**. (This file was originally
+> written against -00 as diagnosis-only; that is no longer the state.) Each
+> entry's "Impl behavior" line records what the reference implementation
+> (`src/apertoid/sig.py`) does; the fixes are present in the current -sig draft.
+> Because the drafts were re-numbered across revisions, the section numbers in an
+> individual entry are those cited when the finding was raised, not necessarily
+> the current -02 numbers. The draft-example diagnosis harness is
+> `tests/test_sig_draft_examples.py`.
 
 The single highest-impact finding is **S1**: the signature length "88" is the
 exact same padded-vs-unpadded defect that F1 was in the DNS draft, and it is
@@ -45,7 +53,7 @@ raw 64-byte Ed25519 signature, standard Base64, unpadded = **86 characters**.
 unpadded Base64 → 86 chars. `sig.py` validates `sig=` as exactly 86 Base64 chars.
 The round-trip test produces an 86-char signature that verifies.
 
-**Proposed fix:** replace every "88" with "86" (four locations: §2.2 ABNF
+**Fix, as applied:** replace every "88" with "86" (four locations: §2.2 ABNF
 example comment, §2.3 sig-tag prose, §3.3 example, Appendix A × 2), and keep
 "unpadded". State explicitly "86 characters (64 bytes, unpadded)".
 
@@ -70,7 +78,7 @@ Two problems in one production:
 `A-Za-z0-9+/`, no `=`, length 86). This matches the §3.2 normative step and the
 DNS-draft convention.
 
-**Proposed fix:** rename the production to `base64` (or `base64-ed25519-sig` to
+**Fix, as applied:** rename the production to `base64` (or `base64-ed25519-sig` to
 mirror the DNS draft), drop `"="`, and bound the length:
 `base64-ed25519-sig = 86*86( ALPHA / DIGIT / "+" / "/" )`. Also reconcile the
 name/alphabet: standard Base64 unpadded is the intended encoding.
@@ -100,7 +108,7 @@ The separator between tags is a **single, mandatory `SP`**. But:
 OWS (spaces/tabs), which accepts the examples. It does NOT enforce exactly one
 `SP`.
 
-**Proposed fix:** change the separator to `OWS` (or `*WSP`) around `;`, e.g.
+**Fix, as applied:** change the separator to `OWS` (or `*WSP`) around `;`, e.g.
 `sig-value = domain-tag *( OWS ";" OWS tag )`. Note obs-fold is deprecated in
 HTTP; if multi-line presentation is only for the draft's readability (like the
 DNS draft's note), say so explicitly and keep the wire format single-line.
@@ -127,7 +135,7 @@ instead of raw Ed25519.
 (via `cryptography`'s Ed25519, which is raw per RFC 8032). The `MEUCIQD...`
 placeholders are unusable and would fail `sig=` length/format validation.
 
-**Proposed fix:** replace all example signatures with a **real** raw Ed25519
+**Fix, as applied:** replace all example signatures with a **real** raw Ed25519
 signature over the actual example signing input, encoded as 86-char unpadded
 Base64 — generated from a real key so the example is copy-paste verifiable
 (mirroring what was done for the DNS draft's pk/prev examples).
@@ -154,7 +162,7 @@ doesn't pin the exact bytes (whitespace, trailing newline).
 **Impl behavior:** hashes the raw body bytes exactly as given, no JSON
 canonicalization (per "raw HTTP request body").
 
-**Proposed fix:** replace `7d5e4a8b...` with the real hex hash of the exact
+**Fix, as applied:** replace `7d5e4a8b...` with the real hex hash of the exact
 example body bytes, and add a sentence: "the body is hashed exactly as
 transmitted on the wire; no JSON or other canonicalization is applied."
 
@@ -184,7 +192,7 @@ equivalent because it never concatenated a signing input; here it is critical.
 **Impl behavior:** includes the trailing LF (`LF.join(parts) + LF`), matching
 "each component terminated by LF" and the Appendix B reference code.
 
-**Proposed fix:** state explicitly and unambiguously, e.g. "The signing input is
+**Fix, as applied:** state explicitly and unambiguously, e.g. "The signing input is
 the concatenation `component LF` for each of the seven components in order;
 there IS a trailing LF after body_hash. The total signing input therefore ends
 with 0x0A." Consider showing the exact byte length or a hex dump for one
@@ -210,7 +218,7 @@ draft should say so.
 **Impl behavior:** accepts 1-16 hex chars in either case (`[0-9A-Fa-f]{1,16}`)
 and lowercases the nonce when building the signing input.
 
-**Proposed fix:** define `HEXDIG = DIGIT / "a"-"f"` locally (lowercase), or state
+**Fix, as applied:** define `HEXDIG = DIGIT / "a"-"f"` locally (lowercase), or state
 "n is lowercase hexadecimal (a-f, 0-9)" and adjust the ABNF; and state that the
 signing input uses the nonce verbatim (recommend requiring lowercase on the wire
 to avoid the case-normalization step).
@@ -229,7 +237,7 @@ replay protection. The ranges are inconsistent and the lower bound is unsafe.
 **Impl behavior:** accepts 1-16 per the ABNF (does not enforce the RECOMMENDED
 8-char floor, since it is only RECOMMENDED).
 
-**Proposed fix:** raise the ABNF floor to match a security minimum, e.g.
+**Fix, as applied:** raise the ABNF floor to match a security minimum, e.g.
 `8*32HEXDIG` (64-128 bits), and reconcile the upper bound (16 hex = only 64 bits
 of nonce; consider allowing more). State the security rationale.
 
@@ -258,7 +266,7 @@ Problems:
 **Impl behavior:** uses the caller-supplied target string verbatim (no
 normalization); the caller is responsible for supplying the exact bytes.
 
-**Proposed fix:** define target normatively independent of HTTP version, e.g.
+**Fix, as applied:** define target normatively independent of HTTP version, e.g.
 "the origin-form request target: `path [ '?' query ]`, taken from the `:path`
 pseudo-header (HTTP/2+) or the request-line (HTTP/1.1), with no normalization,
 percent-encoding preserved as sent." Address asterisk-form/CONNECT explicitly
@@ -282,11 +290,18 @@ hidden bug — but it is a real limitation worth flagging alongside the others:
 
 **Impl behavior:** N/A (matches spec — recipient not part of signing input).
 
-**Proposed fix:** consider adding the destination authority (host[:port]) to the
+**Fix, as applied:** consider adding the destination authority (host[:port]) to the
 signing input, or an explicit `aud`-like binding, so a signature cannot be
 replayed to a different service. At minimum, strengthen §5.1 to state that the
 nonce cache does NOT stop cross-service replay and that this relies entirely on
 each destination being distinct + TLS.
+
+**Status note (partial):** only the "minimum" was applied — the -sig draft (-02,
+Security Considerations) documents that the nonce cache does not stop
+cross-service replay and that mitigation relies on TLS + distinct destinations.
+The stronger option — a normative audience/recipient binding — is explicitly
+**deferred to a future revision** in the draft (listed as a non-goal), so this
+finding is only partly applied.
 
 ---
 
@@ -307,7 +322,7 @@ DoS), since nothing has been authenticated yet.
 verify) so the diagnosis is faithful — BUT this means a bad-signature request
 consumes the nonce. Flagged rather than silently reordered.
 
-**Proposed fix:** add the nonce to the cache **only after** the signature
+**Fix, as applied:** add the nonce to the cache **only after** the signature
 verifies (move step 4's "Add n= to cache" to just before step 10). Optionally
 rate-limit nonce-cache insertion per source.
 
@@ -336,7 +351,7 @@ context is unusable in the other.
 written; this test surfaces the divergence rather than silently adopting the DNS
 rule.
 
-**Proposed fix:** make -sig reference the DNS draft's selector definition
+**Fix, as applied:** make -sig reference the DNS draft's selector definition
 verbatim (or reproduce it): 1-63 chars, LDH, no leading/trailing hyphen,
 case-insensitive. Same for `d=` domain-name (see S13).
 
@@ -357,7 +372,7 @@ inconsistent with real DNS names and with the corrected DNS draft.
 **Impl behavior:** validates `d=` against `label = ALPHA *(...)` as written
 (rejects leading-digit labels), matching the literal ABNF.
 
-**Proposed fix:** align with the corrected DNS draft's `domain-name` (allow
+**Fix, as applied:** align with the corrected DNS draft's `domain-name` (allow
 leading digits per RFC 1035 relaxed rules; underscore labels are not needed for
 `d=` but the letter-first restriction should be dropped for consistency).
 
@@ -377,7 +392,7 @@ normatively references.
 **Impl behavior:** N/A (DNS key resolution is out of scope for `sig.py`), but the
 example is wrong per the corrected DNS draft.
 
-**Proposed fix:** change `pk=MCow...` to a raw 43-char unpadded-Base64 key
+**Fix, as applied:** change `pk=MCow...` to a raw 43-char unpadded-Base64 key
 consistent with the corrected DNS draft (ideally the actual key that verifies
 the Appendix A signature, once S4's real signature is generated).
 
@@ -397,7 +412,7 @@ The absolute-value check does bound future timestamps, which is good. But:
 
 **Impl behavior:** two-sided `abs(current_time - t) > window`, matching §4 step 3.
 
-**Proposed fix:** make the two-sided window explicit in §2.3, and bound the
+**Fix, as applied:** make the two-sided window explicit in §2.3, and bound the
 timestamp width or state it is a 64-bit Unix seconds value.
 
 ---
@@ -423,36 +438,43 @@ semantics -- returns the DNS-layer `pass` (authorized by URL match) but sets
 `VerificationResult.signature_verified = False` and does not call `sig.verify`
 (there is no key). The caller gets the pass without false cryptographic assurance.
 
-**Proposed fix:** §4 should explicitly handle the keyless resolved record: after
-step 5, if the record has no `pk=`, the request is authorized on the DNS-layer
+**Status: APPLIED in the -sig draft, -02 §4 (new step 6a) and its "pass" result
+value.** The fix, as applied: §4 explicitly handles the keyless resolved record —
+when the record has no `pk=`, the request is authorized on the DNS-layer
 verification alone (the url-only stage), the signature is not cryptographically
-verified, and the verifier MUST NOT report a cryptographically-verified result.
+verified, and the verifier does not report a cryptographically-verified result.
+(See P4 in [`FINDINGS.md`](FINDINGS.md) for the DNS side.)
 
 ---
 
 ## Summary table
 
-| ID  | Section(s)          | Severity | One-liner |
-|-----|---------------------|----------|-----------|
-| S1  | 2.3, 3.2, 3.3, App A| CRITICAL | "88 chars" vs "unpadded" — unpadded 64-byte sig is 86; the F1 defect on the sig side |
-| S2  | 2.2                 | HIGH     | ABNF calls it "base64url" but lists standard Base64 `+/=`; and lists `=` despite "unpadded" |
-| S3  | 2.2, 3.3, App A     | HIGH     | tag separator is fixed `SP` in ABNF, but examples wrap with newlines+indent → examples fail own ABNF |
-| S4  | 3.3, App A          | HIGH     | example `sig=MEUCIQD...` is ASN.1 DER ECDSA, not raw Ed25519 (analogue of DNS F2) |
-| S5  | 3.3                 | MEDIUM   | example body_hash `7d5e4a8b...` ≠ real SHA-256 of the shown body; body-bytes not pinned |
-| S6  | 3.1, App A/B        | MEDIUM   | trailing-LF after body_hash ambiguous → 1-byte interop break; impl includes it |
-| S7  | 2.2, 2.3, 3.1       | MEDIUM   | `1*16HEXDIG` is uppercase-only per RFC 5234, but nonce is lowercase → ABNF rejects own example |
-| S8  | 2.2 vs 3.2          | LOW      | nonce length ABNF `1*16` vs RECOMMENDED `8-16`; 1-char nonce unsafe |
-| S9  | 3.1                 | MEDIUM   | `target` defined via HTTP/1.1 request line; undefined for HTTP/2+, normalization, OPTIONS*/CONNECT |
-| S10 | 5.1                 | LOW/MED  | scheme/host/port not signed; nonce cache doesn't stop cross-service replay (documented but weak) |
-| S11 | 4                   | LOW      | nonce cached before signature verified → nonce-burn / cache-flood DoS |
-| S12 | 2.2 vs DNS §7.1     | MEDIUM   | selector ABNF disagrees with corrected DNS selector rule (leading digit, trailing hyphen, length) |
-| S13 | 2.2                 | LOW      | `d=` domain-name uses the pre-F9 too-strict label form |
-| S14 | App A               | LOW      | verifier example shows `pk=MCow...` SPKI key, contradicting corrected DNS draft (F2) |
-| S15 | 2.3, 4              | LOW      | two-sided timestamp window only in the algorithm, not the tag prose; `t` width unbounded |
-| S16 | 4 (5/8); DNS 7.3/12.1| MEDIUM  | §4 assumes pk always exists; keyless url-only agent + signature unspecified (= DNS P4) |
+"Section(s)" gives the section(s) as the finding was raised (earlier -sig
+numbering); "Status" gives where the fix is now. All are applied in the -sig
+draft (currently -02, which is also the published revision) except S10, which is
+partly applied (see its entry).
+
+| ID  | Section(s) as raised | Severity | Status | One-liner |
+|-----|---------------------|----------|--------|-----------|
+| S1  | 2.3, 3.2, 3.3, App A| CRITICAL | applied, -sig -02 | "88 chars" vs "unpadded" — unpadded 64-byte sig is 86; the F1 defect on the sig side |
+| S2  | 2.2                 | HIGH     | applied, -sig -02 | ABNF calls it "base64url" but lists standard Base64 `+/=`; and lists `=` despite "unpadded" |
+| S3  | 2.2, 3.3, App A     | HIGH     | applied, -sig -02 | tag separator is fixed `SP` in ABNF, but examples wrap with newlines+indent → examples fail own ABNF |
+| S4  | 3.3, App A          | HIGH     | applied, -sig -02 | example `sig=MEUCIQD...` is ASN.1 DER ECDSA, not raw Ed25519 (analogue of DNS F2) |
+| S5  | 3.3                 | MEDIUM   | applied, -sig -02 | example body_hash `7d5e4a8b...` ≠ real SHA-256 of the shown body; body-bytes not pinned |
+| S6  | 3.1, App A/B        | MEDIUM   | applied, -sig -02 | trailing-LF after body_hash ambiguous → 1-byte interop break; impl includes it |
+| S7  | 2.2, 2.3, 3.1       | MEDIUM   | applied, -sig -02 | `1*16HEXDIG` is uppercase-only per RFC 5234, but nonce is lowercase → ABNF rejects own example |
+| S8  | 2.2 vs 3.2          | LOW      | applied, -sig -02 (`8*32`) | nonce length ABNF `1*16` vs RECOMMENDED `8-16`; 1-char nonce unsafe |
+| S9  | 3.1                 | MEDIUM   | applied, -sig -02 | `target` defined via HTTP/1.1 request line; undefined for HTTP/2+, normalization, OPTIONS*/CONNECT |
+| S10 | 5.1                 | LOW/MED  | PARTLY applied, -sig -02 | scheme/host/port not signed; nonce cache doesn't stop cross-service replay (documented; audience binding deferred) |
+| S11 | 4                   | LOW      | applied, -sig -02 (step 9a) | nonce cached before signature verified → nonce-burn / cache-flood DoS |
+| S12 | 2.2 vs DNS §7.1     | MEDIUM   | applied, -sig -02 | selector ABNF disagrees with corrected DNS selector rule (leading digit, trailing hyphen, length) |
+| S13 | 2.2                 | LOW      | applied, -sig -02 | `d=` domain-name uses the pre-F9 too-strict label form |
+| S14 | App A               | LOW      | applied, -sig -02 | verifier example shows `pk=MCow...` SPKI key, contradicting corrected DNS draft (F2) |
+| S15 | 2.3, 4              | LOW      | applied, -sig -02 | two-sided timestamp window only in the algorithm, not the tag prose; `t` width unbounded |
+| S16 | 4 (5/8); DNS 7.3/12.1| MEDIUM  | applied, -sig -02 §4 (= DNS P4) | §4 assumes pk always exists; keyless url-only agent + signature unspecified |
 
 **Consistency-with-DNS-draft summary:** S1 (sig length ↔ F1), S4 (DER sig ↔ F2
 SPKI key), S12 (selector rule ↔ DNS §7.1), S13 (`label` ABNF ↔ F9), and S14
-(`pk=MCow...` ↔ F2) are the points where -sig contradicts the corrected DNS
-draft. S1/S2/S4 also mean the intended raw/standard-Base64/unpadded convention
-is not yet reflected here.
+(`pk=MCow...` ↔ F2) were the points where -sig contradicted the corrected DNS
+draft; all are now resolved in the -sig draft (-02), which reflects the
+raw/standard-Base64/unpadded convention (S1/S2/S4).

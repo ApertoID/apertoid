@@ -1,5 +1,16 @@
 # -02 Normative Wording Proposal (P1-P4)
 
+> SUPERSEDED (2026-08-14). This was a pre-edit working document: the wording it
+> proposed for P1-P4 has since been applied — in the -02 revision, then carried
+> and re-numbered into the DNS draft, which is now **-03** in the repository
+> (published revision: -02). The status quoted in the banner below ("drafts are
+> still -01 … nothing in spec/ edited") describes a state that no longer exists.
+> Kept for the record — it preserves the exact proposed wording and the
+> author-decision rationale. For current finding status see
+> [`FINDINGS.md`](FINDINGS.md) (P1-P4) and [`FINDINGS-sig.md`](FINDINGS-sig.md).
+>
+> --- original banner, describing the state at the time of writing: ---
+>
 > REVIEW DOCUMENT ONLY. Nothing in `spec/` has been edited; the drafts are still
 > `-01` (the published versions). This proposes the exact normative text for the
 > four Phase-2 findings so the author can approve wording BEFORE any `-02` edit.
