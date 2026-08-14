@@ -9,9 +9,9 @@ SPF/DKIM/DMARC for email.
 
 The protocol is specified in two IETF Internet-Drafts:
 
-- **DNS records** — [draft-ferro-dnsop-apertoid-01](https://datatracker.ietf.org/doc/draft-ferro-dnsop-apertoid/)
+- **DNS records** — [draft-ferro-dnsop-apertoid-02](https://datatracker.ietf.org/doc/draft-ferro-dnsop-apertoid/)
   (Policy Record and Agent Declaration Record).
-- **HTTP request signing** — [draft-ferro-httpbis-apertoid-sig-01](https://datatracker.ietf.org/doc/draft-ferro-httpbis-apertoid-sig/)
+- **HTTP request signing** — [draft-ferro-httpbis-apertoid-sig-02](https://datatracker.ietf.org/doc/draft-ferro-httpbis-apertoid-sig/)
   (the `ApertoID-Signature` header).
 
 This package is the reference implementation of the core operations in those
@@ -41,14 +41,17 @@ drafts, written strictly from the spec text (the same text lives in `spec/`).
   two-sided timestamp window, nonce replay check, and the Ed25519 signature
   check. Per the draft's Section 4 step 9a, a nonce is recorded in the caller's
   replay cache only *after* the signature verifies, so a request with a bad
-  signature cannot burn a nonce or flood the cache.
+  signature cannot burn a nonce or flood the cache. The validity `window` must
+  be within the Section 5 range of 60 to 600 seconds; a value outside that range
+  raises `ValueError`. An optional `max_body_size` rejects an over-large body
+  (result `body_too_large`) before it is hashed.
 
 **End-to-end verification** (`apertoid.verify`)
 - `verify_apertoid(claimed_domain, selector, agent_url, resolver, ...)`
   implements the DNS verification procedure of Section 11.2 in full: policy and
   agent-record lookup, Section 6.1 multi-record selection, revocation
-  (checked first), `include=` delegation with the Section 8 DoS limits (one
-  delegation hop, at most 10 total DNS queries, cycle detection) and a
+  (checked first), `include=` delegation with the Section 8 DoS limits (at most
+  two delegation hops, at most 10 total DNS queries, cycle detection) and a
   revocation re-check on every delegated record, `exp` expiry against
   wall-clock time, and Section 11.4 URL matching. It returns a
   `VerificationResult` carrying the outcome, the algorithm step that produced
@@ -98,11 +101,9 @@ What is genuinely **not** built:
   the library performs network I/O on its own.
 
 The implementation was written strictly from the spec, and the ambiguities and
-gaps that surfaced while building the verifier are tracked for the next draft
-revision (`-02`): findings P1–P4 in [`FINDINGS.md`](FINDINGS.md) (revocation of an
-`include=` target, the delegation-depth wording, the trailing-slash URL rule, and
-the keyless `url=`-only agent case) and the corresponding S16 in
-[`FINDINGS-sig.md`](FINDINGS-sig.md).
+gaps that surfaced while building the verifier are catalogued as findings P1–P8
+in [`FINDINGS.md`](FINDINGS.md) (with the corresponding S16 in
+[`FINDINGS-sig.md`](FINDINGS-sig.md)) and folded into subsequent draft revisions.
 
 ## Install
 
@@ -110,7 +111,12 @@ the keyless `url=`-only agent case) and the corresponding S16 in
 pip install apertoid
 ```
 
-Requires Python >= 3.9 and depends on `cryptography` (for Ed25519).
+Requires Python >= 3.9 and depends on `cryptography` (for Ed25519). Live DNS
+resolution (`DnsPythonResolver`) needs the optional `dnspython` package:
+
+```bash
+pip install "apertoid[dns]"
+```
 
 ## Usage
 
@@ -146,9 +152,10 @@ print(result.result)     # "pass"
 ```
 
 `sig.verify(...)` returns a `VerifyResult` whose `.result` is one of `pass`,
-`malformed`, `timestamp_invalid`, `nonce_reused`, or `sig_invalid`. It takes the
-public key as an argument. To resolve that key from DNS and verify the whole
-request in one call, use `verify_request` below.
+`malformed`, `timestamp_invalid`, `nonce_reused`, `sig_invalid`, or (only when
+`max_body_size` is set) `body_too_large`. It takes the public key as an argument.
+To resolve that key from DNS and verify the whole request in one call, use
+`verify_request` below.
 
 ### End-to-end: verify a signed request against DNS
 
